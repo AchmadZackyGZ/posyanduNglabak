@@ -7,9 +7,6 @@
 *.dll
 *.so
 *.dylib
-# Asumsi nama binari backend Anda adalah 'backend' atau 'main'
-backend
-main
 
 # Vendor directory (jika menggunakan go mod vendor)
 vendor/
