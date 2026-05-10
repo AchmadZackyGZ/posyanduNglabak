@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  db_posyandu:
+    image: postgres:15-alpine
+    container_name: posyandu_postgres
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - posyandu_pgdata:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: posyandu_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@posyandu.com"
+      PGADMIN_DEFAULT_PASSWORD: "adminrahasia"
+    ports:
+      - "5055:80" # Kita ubah port ke 5055 agar 100% aman dari bentrok
+    depends_on:
+      - db_posyandu
+
+volumes:
+  posyandu_pgdata:
