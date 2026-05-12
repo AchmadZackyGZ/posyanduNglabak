@@ -2,7 +2,7 @@ package routes
 
 import (
 	"posyandu-api/controllers"
-	"posyandu-api/middleware" // <-- Import middleware Anda
+	"posyandu-api/middleware"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -10,7 +10,8 @@ import (
 
 func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	authController := controllers.NewAuthController(db)
-	balitaController := controllers.NewBalitaController(db) // <-- Inisialisasi controller balita
+	balitaController := controllers.NewBalitaController(db)
+	lansiaController := controllers.NewLansiaController(db)
 
 	v1 := r.Group("/api/v1")
 	{
@@ -23,17 +24,24 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			auth.POST("/login", authController.Login)
 		}
 
-		// GRUP RUTE TERPROTEKSI (Wajib melampirkan Token JWT)	
+		// Blok rute terproteksi (Memerlukan validasi token JWT)
 		protected := v1.Group("")
-		protected.Use(middleware.AuthRequired()) // <-- Pasang gembok utama
+		protected.Use(middleware.AuthRequired())
 		{
-			// Rute khusus operasional Balita
+			// Endpoint Operasional Balita
 			balita := protected.Group("/balita")
-			// Hanya ADMIN, BIDAN, dan KADER yang boleh mendaftar & menimbang
 			balita.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
 			{
 				balita.POST("/register", balitaController.RegisterBalita)
 				balita.POST("/timbang", balitaController.CatatPemeriksaan)
+			}
+
+			// <-- 2. INJEKSI ENDPOINT LANSIA DI SINI
+			lansia := protected.Group("/lansia")
+			lansia.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			{
+				lansia.POST("/register", lansiaController.RegisterLansia)
+				lansia.POST("/periksa", lansiaController.CatatPemeriksaan)
 			}
 		}
 	}
