@@ -12,6 +12,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	authController := controllers.NewAuthController(db)
 	balitaController := controllers.NewBalitaController(db)
 	lansiaController := controllers.NewLansiaController(db)
+	ibuHamilController := controllers.NewIbuHamilController(db)
 
 	v1 := r.Group("/api/v1")
 	{
@@ -34,6 +35,13 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			{
 				balita.POST("/register", balitaController.RegisterBalita)
 				balita.POST("/timbang", balitaController.CatatPemeriksaan)
+			}
+
+			ibuHamil := protected.Group("/ibu-hamil")
+			ibuHamil.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			{
+				ibuHamil.POST("/register", ibuHamilController.RegisterIbuHamil)
+				ibuHamil.POST("/periksa", ibuHamilController.CatatPemeriksaan)
 			}
 
 			// <-- 2. INJEKSI ENDPOINT LANSIA DI SINI
