@@ -1,9 +1,9 @@
 <script lang="ts">
+	// Memuat gaya CSS global
 	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
 
+	// Menerima komponen halaman anak di Svelte 5
 	let { children } = $props();
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
 {@render children()}
