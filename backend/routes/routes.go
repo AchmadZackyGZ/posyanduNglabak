@@ -13,7 +13,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	balitaController := controllers.NewBalitaController(db)
 	lansiaController := controllers.NewLansiaController(db)
 	ibuHamilController := controllers.NewIbuHamilController(db)
-
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/ping", func(c *gin.Context) {
