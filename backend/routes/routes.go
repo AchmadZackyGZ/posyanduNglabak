@@ -9,6 +9,9 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine, db *gorm.DB) {
+	// PASANG MIDDLEWARE CORS SECARA GLOBAL DI SINI
+	r.Use(middleware.CORSMiddleware())
+	
 	authController := controllers.NewAuthController(db)
 	balitaController := controllers.NewBalitaController(db)
 	lansiaController := controllers.NewLansiaController(db)
