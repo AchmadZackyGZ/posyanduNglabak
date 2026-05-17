@@ -23,7 +23,7 @@ func main() {
 	db := config.ConnectDB()
 
 	// 3. Jalankan Seeder Admin Otomatis
-	seed.SeedAdmin(db)
+	seed.SeedUsers(db)
 
 	// 4. Inisialisasi Gin Engine & Rute
 	r := gin.Default()
