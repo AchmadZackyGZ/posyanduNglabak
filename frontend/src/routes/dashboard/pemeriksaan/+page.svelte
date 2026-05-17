@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Plus, Edit2, Trash2, Calculator, X, Info } from 'lucide-svelte';
+	import { Plus, Edit2, Trash2, Calculator, X } from 'lucide-svelte';
 	import Chart from 'chart.js/auto';
 
 	let chartCanvas: HTMLCanvasElement;
