@@ -29,6 +29,20 @@ type RegisterLansiaInput struct {
 	KontakDarurat  string `json:"kontak_darurat"`
 }
 
+// GetListLansia mengambil seluruh data lansia
+func (lc *LansiaController) GetListLansia(c *gin.Context) {
+	var lansias []models.Lansia
+	if err := lc.DB.Order("created_at desc").Find(&lansias).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil daftar lansia"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengambil daftar lansia",
+		"data":    lansias,
+	})
+}
+
 // RegisterLansia memproses pendaftaran data master Lansia di tingkat backend
 func (lc *LansiaController) RegisterLansia(c *gin.Context) {
 	var input RegisterLansiaInput
