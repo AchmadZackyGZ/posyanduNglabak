@@ -29,6 +29,20 @@ type RegisterIbuHamilInput struct {
 	NoHP         string `json:"no_hp" binding:"required"` // Username login mandiri
 }
 
+// GetListIbuHamil mengambil seluruh data ibu hamil
+func (ic *IbuHamilController) GetListIbuHamil(c *gin.Context) {
+	var ibuHamils []models.IbuHamil
+	if err := ic.DB.Order("created_at desc").Find(&ibuHamils).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil daftar ibu hamil"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengambil daftar ibu hamil",
+		"data":    ibuHamils,
+	})
+}
+
 // RegisterIbuHamil mendaftarkan ibu hamil sekaligus membuatkan akun login secara transaksional
 func (ic *IbuHamilController) RegisterIbuHamil(c *gin.Context) {
 	var input RegisterIbuHamilInput
