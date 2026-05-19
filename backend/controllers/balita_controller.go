@@ -30,6 +30,20 @@ type RegisterBalitaInput struct {
 	NoHP         string `json:"no_hp" binding:"required"` // Digunakan sebagai username ortu
 }
 
+// GetListBalita mengambil seluruh data balita secara menurun (terbaru di atas)
+func (bc *BalitaController) GetListBalita(c *gin.Context) {
+	var balitas []models.Balita
+	if err := bc.DB.Order("created_at desc").Find(&balitas).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data balita"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengambil daftar balita",
+		"data":    balitas,
+	})
+}
+
 // RegisterBalita mendaftarkan pasien sekaligus membuatkan akun USER untuk orang tua
 func (bc *BalitaController) RegisterBalita(c *gin.Context) {
 	var input RegisterBalitaInput
