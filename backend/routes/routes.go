@@ -16,6 +16,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	balitaController := controllers.NewBalitaController(db)
 	lansiaController := controllers.NewLansiaController(db)
 	ibuHamilController := controllers.NewIbuHamilController(db)
+	dashboardController := controllers.NewDashboardController(db) // Inisialisasi controller agregasi
+
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/ping", func(c *gin.Context) {
@@ -31,27 +33,38 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		protected := v1.Group("")
 		protected.Use(middleware.AuthRequired())
 		{
+			// Endpoint Dashboard
+			dashboard := protected.Group("/dashboard")
+			dashboard.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			{
+				dashboard.GET("/summary", dashboardController.GetSummary)
+			}
+
 			// Endpoint Operasional Balita
 			balita := protected.Group("/balita")
 			balita.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
 			{
 				balita.POST("/register", balitaController.RegisterBalita)
 				balita.POST("/timbang", balitaController.CatatPemeriksaan)
+				balita.GET("", balitaController.GetListBalita) // API Ambil Daftar Balita
 			}
 
+			// Endpoint Operasional Ibu Hamil
 			ibuHamil := protected.Group("/ibu-hamil")
 			ibuHamil.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
 			{
 				ibuHamil.POST("/register", ibuHamilController.RegisterIbuHamil)
 				ibuHamil.POST("/periksa", ibuHamilController.CatatPemeriksaan)
+				ibuHamil.GET("", ibuHamilController.GetListIbuHamil) // API Ambil Daftar Ibu Hamil
 			}
 
-			// <-- 2. INJEKSI ENDPOINT LANSIA DI SINI
+			// Endpoint Operasional Lansia
 			lansia := protected.Group("/lansia")
 			lansia.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
 			{
 				lansia.POST("/register", lansiaController.RegisterLansia)
 				lansia.POST("/periksa", lansiaController.CatatPemeriksaan)
+				lansia.GET("", lansiaController.GetListLansia) // API Ambil Daftar Lansia
 			}
 		}
 	}
