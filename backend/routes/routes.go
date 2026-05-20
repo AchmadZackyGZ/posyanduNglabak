@@ -16,7 +16,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	balitaController := controllers.NewBalitaController(db)
 	lansiaController := controllers.NewLansiaController(db)
 	ibuHamilController := controllers.NewIbuHamilController(db)
-	dashboardController := controllers.NewDashboardController(db) // Inisialisasi controller agregasi
+	dashboardController := controllers.NewDashboardController(db)
+	jadwalController := controllers.NewJadwalController(db)
 
 	v1 := r.Group("/api/v1")
 	{
@@ -65,6 +66,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				lansia.POST("/register", lansiaController.RegisterLansia)
 				lansia.POST("/periksa", lansiaController.CatatPemeriksaan)
 				lansia.GET("", lansiaController.GetListLansia) // API Ambil Daftar Lansia
+			}
+
+			// Endpoint Manajemen Jadwal
+			jadwal := protected.Group("/jadwal")
+			jadwal.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			{
+				jadwal.POST("", jadwalController.CreateJadwal)
+				jadwal.GET("", jadwalController.GetListJadwal)
 			}
 		}
 	}
