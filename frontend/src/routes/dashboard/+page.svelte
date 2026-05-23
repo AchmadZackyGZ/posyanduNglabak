@@ -22,6 +22,16 @@
 		status: string;
 	}
 
+	interface GrafikPertumbuhan {
+    bulan: string;
+    rata_tinggi: number;
+    rata_berat: number;
+}
+
+	let grafikLabels = $state<string[]>([]);
+	let grafikTinggi = $state<number[]>([]);
+	let grafikBerat = $state<number[]>([]);
+
 	let chartCanvas = $state<HTMLCanvasElement>();
 	let chartInstance: Chart | null = null;
 
@@ -79,6 +89,14 @@
 				]);
 
 				summary = resSummary.data;
+
+				// extrak data grafik dari backend
+				if (resSummary.data.grafik_pertumbuhan && resSummary.data.grafik_pertumbuhan.length > 0) {
+					grafikLabels = resSummary.data.grafik_pertumbuhan.map((g: GrafikPertumbuhan) => g.bulan);
+					grafikTinggi = resSummary.data.grafik_pertumbuhan.map((g: GrafikPertumbuhan) => g.rata_tinggi);
+					grafikBerat = resSummary.data.grafik_pertumbuhan.map((g: GrafikPertumbuhan) => g.rata_berat);
+				}
+
 				balitaTerbaru = resBalita.data.slice(0, 5);
 				jadwalTerdekat = resJadwal.data.slice(0, 2);
 			} catch (error) {
@@ -104,11 +122,11 @@
 			chartInstance = new Chart(chartCanvas, {
 				type: 'line',
 				data: {
-					labels: ['Des 2023', 'Jan 2024', 'Feb 2024', 'Mar 2024', 'Apr 2024', 'Mei 2024'],
+					labels: grafikLabels.length > 0 ? grafikLabels : ['Belum ada data'],
 					datasets: [
 						{
 							label: 'Tinggi Badan (cm)',
-							data: [68, 71, 73, 74, 73, 74],
+							data: grafikTinggi.length > 0 ? grafikTinggi : [0],
 							borderColor: '#14a38b',
 							backgroundColor: 'transparent',
 							tension: 0.4,
@@ -117,7 +135,7 @@
 						},
 						{
 							label: 'Berat Badan (kg)',
-							data: [8.5, 8.8, 9.0, 9.1, 9.0, 9.2],
+							data: grafikBerat.length > 0 ? grafikBerat : [0],
 							borderColor: '#0f6456',
 							backgroundColor: 'transparent',
 							tension: 0.4,
@@ -213,7 +231,7 @@
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 			<div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
 				<div class="mb-6 flex items-center justify-between">
-					<h2 class="text-base font-bold text-gray-800">Grafik Pertumbuhan Balita (Dummy)</h2>
+					<h2 class="text-base font-bold text-gray-800">Grafik Pertumbuhan Balita</h2>
 					<select
 						class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-gray-600 outline-none"
 					>
