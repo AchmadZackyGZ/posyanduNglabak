@@ -1,59 +1,114 @@
 <script lang="ts">
+	/* eslint-disable svelte/no-navigation-without-resolve */
+	import { onMount } from 'svelte';
+	import { fetchAPI } from '$lib/api';
 	import { Search, Plus, Edit2, Trash2, Baby } from 'lucide-svelte';
 
-	// State pencarian reaktif Svelte 5
+	interface Balita {
+		id: string;
+		nik: string;
+		nama_balita: string;
+		tanggal_lahir: string;
+		jenis_kelamin: string;
+		nama_orang_tua: string;
+		alamat: string;
+		no_hp: string;
+	}
+
 	let searchQuery = $state('');
+	let balitaList = $state<Balita[]>([]);
+	let isLoading = $state(true);
 
-	// DATA DUMMY: Simulasi respon dari backend API Golang
-	let balitaList = $state([
-		{
-			id: 1,
-			nik: '3509123456780001',
-			nama: 'Budi Santoso',
-			jk: 'L',
-			namaIbu: 'Siti Aminah',
-			umurBulan: 14
-		},
-		{
-			id: 2,
-			nik: '3509123456780002',
-			nama: 'Aisyah Putri',
-			jk: 'P',
-			namaIbu: 'Nurul Huda',
-			umurBulan: 8
-		},
-		{
-			id: 3,
-			nik: '3509123456780003',
-			nama: 'Cakra Manggala',
-			jk: 'L',
-			namaIbu: 'Dewi Lestari',
-			umurBulan: 22
-		},
-		{
-			id: 4,
-			nik: '3509123456780004',
-			nama: 'Dinda Kirana',
-			jk: 'P',
-			namaIbu: 'Rina Wati',
-			umurBulan: 5
-		},
-		{
-			id: 5,
-			nik: '3509123456780005',
-			nama: 'Eko Prayitno',
-			jk: 'L',
-			namaIbu: 'Sri Wahyuni',
-			umurBulan: 30
+	// --- STATE MODAL & FORM ---
+	let isModalOpen = $state(false);
+	let isSubmitting = $state(false);
+	let formBalita = $state({
+		nik: '',
+		nama_balita: '',
+		tanggal_lahir: '',
+		jenis_kelamin: 'L',
+		nama_orang_tua: '',
+		alamat: '', // Pastikan field ini ada
+		no_hp: '' // Pastikan field ini ada
+	});
+
+	function hitungUsiaBulan(tglLahir: string) {
+		const birth = new Date(tglLahir);
+		const now = new Date();
+		let months = (now.getFullYear() - birth.getFullYear()) * 12;
+		months -= birth.getMonth();
+		months += now.getMonth();
+		return months <= 0 ? 0 : months;
+	}
+
+	// --- FUNGSI AMBIL DATA (DIPISAH AGAR BISA DIPANGGIL ULANG) ---
+	async function loadDataBalita() {
+		try {
+			const response = await fetchAPI('/balita');
+			if (response.data) {
+				balitaList = response.data;
+			}
+		} catch (error) {
+			console.error('Gagal memuat data balita:', error);
+		} finally {
+			isLoading = false;
 		}
-	]);
+	}
 
-	// RUNES $derived: Memfilter data secara otomatis saat pencarian berubah
+	onMount(() => {
+		loadDataBalita(); // Panggil saat halaman pertama kali dibuka
+	});
+
+	// --- FILTER DENGAN PENGAMANAN (SAFEGUARD) ---
 	let filteredBalita = $derived(
-		balitaList.filter(
-			(b) => b.nama.toLowerCase().includes(searchQuery.toLowerCase()) || b.nik.includes(searchQuery)
-		)
+		balitaList.filter((b) => {
+			// Pengamanan: Cegah error 'toLowerCase' jika ada objek kosong dari server
+			if (!b || !b.nama_balita) return false;
+
+			return (
+				b.nama_balita.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				(b.nik && b.nik.includes(searchQuery))
+			);
+		})
 	);
+
+	// --- FUNGSI POST REGISTER BALITA ---
+	async function handleTambahBalita(event: Event) {
+		event.preventDefault();
+		isSubmitting = true;
+
+		try {
+			await fetchAPI('/balita/register', {
+				method: 'POST',
+				body: JSON.stringify(formBalita)
+			});
+
+			// REFRESH DATA TABEL: Sedot ulang data terbaru dari database
+			await loadDataBalita();
+
+			// Tutup modal dan reset form
+			isModalOpen = false;
+			formBalita = {
+				nik: '',
+				nama_balita: '',
+				tanggal_lahir: '',
+				jenis_kelamin: 'L',
+				nama_orang_tua: '',
+				alamat: '',
+				no_hp: ''
+			};
+
+			alert('Data balita berhasil didaftarkan!');
+		} catch (error) {
+			if (error instanceof Error) {
+				alert('Gagal mendaftarkan balita: ' + error.message);
+			} else {
+				alert('Gagal mendaftarkan balita: Terjadi kesalahan tidak terduga.');
+			}
+		} finally {
+			isSubmitting = false; // Tombol kembali normal
+		}
+	}
 </script>
 
 <svelte:head>
@@ -69,6 +124,7 @@
 			</p>
 		</div>
 		<button
+			onclick={() => (isModalOpen = true)}
 			class="flex cursor-pointer items-center gap-2 rounded-xl bg-[#0f6456] px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-[#0c4e43] active:scale-95"
 		>
 			<Plus size={18} strokeWidth={3} />
@@ -99,9 +155,9 @@
 			>
 				<Baby size={20} class="text-[#14a38b]" />
 				<span>Total Data:</span>
-				<span class="rounded-lg bg-[#e6f6f4] px-2.5 py-0.5 font-black text-[#0f6456]"
-					>{filteredBalita.length}</span
-				>
+				<span class="rounded-lg bg-[#e6f6f4] px-2.5 py-0.5 font-black text-[#0f6456]">
+					{filteredBalita.length}
+				</span>
 			</div>
 		</div>
 
@@ -120,15 +176,23 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-gray-50 bg-white">
-					{#if filteredBalita.length === 0}
+					{#if isLoading}
+						<tr>
+							<td colspan="6" class="px-6 py-16 text-center">
+								<div class="flex flex-col items-center justify-center text-gray-400">
+									<div
+										class="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-[#14a38b] border-t-transparent"
+									></div>
+									<p class="text-base font-medium">Memuat data dari server...</p>
+								</div>
+							</td>
+						</tr>
+					{:else if filteredBalita.length === 0}
 						<tr>
 							<td colspan="6" class="px-6 py-16 text-center">
 								<div class="flex flex-col items-center justify-center text-gray-400">
 									<Search size={32} class="mb-3 opacity-50" />
 									<p class="text-base font-medium">Tidak ada data balita ditemukan.</p>
-									<p class="text-xs">
-										Kata kunci "{searchQuery}" tidak cocok dengan NIK atau Nama mana pun.
-									</p>
 								</div>
 							</td>
 						</tr>
@@ -138,38 +202,36 @@
 						<tr class="transition-colors hover:bg-[#f8fdfb]">
 							<td class="px-6 py-4 text-center font-bold text-gray-400">{index + 1}</td>
 							<td class="px-6 py-4">
-								<p class="text-base font-bold text-[#1e293b]">{balita.nama}</p>
+								<p class="text-base font-bold text-[#1e293b]">{balita.nama_balita}</p>
 								<p class="mt-0.5 font-mono text-xs text-gray-400">{balita.nik}</p>
 							</td>
 							<td class="px-6 py-4 text-center">
 								<span
-									class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold {balita.jk ===
+									class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold {balita.jenis_kelamin ===
 									'L'
 										? 'bg-blue-50 text-blue-600'
 										: 'bg-pink-50 text-pink-600'}"
 								>
-									{balita.jk}
+									{balita.jenis_kelamin}
 								</span>
 							</td>
 							<td class="px-6 py-4 text-center">
-								<span class="font-bold text-gray-700">{balita.umurBulan}</span>
+								<span class="font-bold text-gray-700">{hitungUsiaBulan(balita.tanggal_lahir)}</span>
 								<span class="text-xs text-gray-500">Bln</span>
 							</td>
 							<td class="px-6 py-4">
-								<span class="font-medium text-gray-700">{balita.namaIbu}</span>
+								<span class="font-medium text-gray-700">{balita.nama_orang_tua}</span>
 							</td>
 							<td class="px-6 py-4">
 								<div class="flex items-center justify-center gap-2">
 									<button
 										class="cursor-pointer rounded-lg bg-blue-50 p-2 text-blue-600 transition-colors hover:bg-blue-100"
-										aria-label="Edit"
 										title="Edit Data"
 									>
 										<Edit2 size={18} />
 									</button>
 									<button
 										class="cursor-pointer rounded-lg bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100"
-										aria-label="Hapus"
 										title="Hapus Data"
 									>
 										<Trash2 size={18} />
@@ -183,3 +245,122 @@
 		</div>
 	</div>
 </div>
+
+{#if isModalOpen}
+	<div
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+	>
+		<div class="absolute inset-0 cursor-pointer" onclick={() => (isModalOpen = false)}></div>
+
+		<div class="relative z-10 w-full max-w-[500px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+			<div class="border-b border-gray-100 bg-gray-50/50 px-6 py-4">
+				<h2 class="text-lg font-black text-gray-800">Registrasi Balita Baru</h2>
+				<p class="text-xs text-gray-500">
+					Masukkan identitas lengkap balita untuk pendataan Posyandu.
+				</p>
+			</div>
+
+			<form onsubmit={handleTambahBalita} class="space-y-4 p-6">
+				<div>
+					<label class="mb-1.5 block text-xs font-bold text-gray-700"
+						>NIK Balita (Jika ada) / Nomor KIA</label
+					>
+					<input
+						type="text"
+						required
+						bind:value={formBalita.nik}
+						placeholder="Contoh: 3509123456780001"
+						class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
+					/>
+				</div>
+
+				<div>
+					<label class="mb-1.5 block text-xs font-bold text-gray-700">Nama Lengkap Balita</label>
+					<input
+						type="text"
+						required
+						bind:value={formBalita.nama_balita}
+						placeholder="Contoh: Budi Santoso"
+						class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
+					/>
+				</div>
+
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label class="mb-1.5 block text-xs font-bold text-gray-700">Tanggal Lahir</label>
+						<input
+							type="date"
+							required
+							bind:value={formBalita.tanggal_lahir}
+							class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
+						/>
+					</div>
+					<div>
+						<label class="mb-1.5 block text-xs font-bold text-gray-700">Jenis Kelamin</label>
+						<select
+							bind:value={formBalita.jenis_kelamin}
+							class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
+						>
+							<option value="L">Laki-Laki (L)</option>
+							<option value="P">Perempuan (P)</option>
+						</select>
+					</div>
+				</div>
+
+				<div>
+					<label class="mb-1.5 block text-xs font-bold text-gray-700"
+						>Nama Orang Tua (Ibu/Ayah)</label
+					>
+					<input
+						type="text"
+						required
+						bind:value={formBalita.nama_orang_tua}
+						placeholder="Contoh: Siti Aminah"
+						class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
+					/>
+				</div>
+
+				<div>
+					<label class="mb-1.5 block text-xs font-bold text-gray-700">Alamat Lengkap</label>
+					<textarea
+						required
+						bind:value={formBalita.alamat}
+						placeholder="Contoh: Jl. Mawar No. 10, RT 01 RW 02"
+						class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
+						rows="2"
+					></textarea>
+				</div>
+
+				<div>
+					<label class="mb-1.5 block text-xs font-bold text-gray-700"
+						>Nomor HP / WhatsApp (Aktif)</label
+					>
+					<input
+						type="tel"
+						required
+						bind:value={formBalita.no_hp}
+						placeholder="Contoh: 081234567890"
+						class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
+					/>
+				</div>
+
+				<div class="mt-6 flex items-center justify-end gap-3 border-t border-gray-50 pt-4">
+					<button
+						type="button"
+						onclick={() => (isModalOpen = false)}
+						class="cursor-pointer rounded-xl px-5 py-2.5 text-sm font-bold text-gray-500 transition hover:bg-gray-100"
+					>
+						Batal
+					</button>
+					<button
+						type="submit"
+						disabled={isSubmitting}
+						class="cursor-pointer rounded-xl bg-[#0f6456] px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#0c4e43] disabled:cursor-not-allowed disabled:opacity-70"
+					>
+						{isSubmitting ? 'Menyimpan...' : 'Daftarkan Balita'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
