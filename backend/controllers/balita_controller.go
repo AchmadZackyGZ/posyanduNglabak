@@ -19,6 +19,16 @@ func NewBalitaController(db *gorm.DB) *BalitaController {
 	return &BalitaController{DB: db}
 }
 
+// Struktur input pencatatan timbang (FR-03)
+type TimbangBalitaInput struct {
+	BalitaID      string  `json:"balita_id" binding:"required"`
+	BeratBadan    float64 `json:"berat_badan" binding:"required"`
+	TinggiBadan   float64 `json:"tinggi_badan" binding:"required"`
+	LingkarKepala float64 `json:"lingkar_kepala"`
+	StatusGizi    string  `json:"status_gizi" binding:"required"` // NORMAL / STUNTING / dll
+	Catatan       string  `json:"catatan"`
+}
+
 // Struktur input untuk pendaftaran Balita (FR-02)
 type RegisterBalitaInput struct {
 	NIK          string `json:"nik" binding:"required"`
@@ -28,6 +38,16 @@ type RegisterBalitaInput struct {
 	NamaOrangTua string `json:"nama_orang_tua" binding:"required"`
 	Alamat       string `json:"alamat" binding:"required"`
 	NoHP         string `json:"no_hp" binding:"required"` // Digunakan sebagai username ortu
+}
+
+// Struktur input untuk Update Balita (Tanpa NoHP karena NoHP terikat di tabel User)
+type UpdateBalitaInput struct {
+	NIK          string `json:"nik" binding:"required"`
+	NamaBalita   string `json:"nama_balita" binding:"required"`
+	TanggalLahir string `json:"tanggal_lahir" binding:"required"`
+	JenisKelamin string `json:"jenis_kelamin" binding:"required"`
+	NamaOrangTua string `json:"nama_orang_tua" binding:"required"`
+	Alamat       string `json:"alamat" binding:"required"`
 }
 
 // GetListBalita mengambil seluruh data balita secara menurun (terbaru di atas)
@@ -109,15 +129,71 @@ func (bc *BalitaController) RegisterBalita(c *gin.Context) {
 	})
 }
 
-// Struktur input pencatatan timbang (FR-03)
-type TimbangBalitaInput struct {
-	BalitaID      string  `json:"balita_id" binding:"required"`
-	BeratBadan    float64 `json:"berat_badan" binding:"required"`
-	TinggiBadan   float64 `json:"tinggi_badan" binding:"required"`
-	LingkarKepala float64 `json:"lingkar_kepala"`
-	StatusGizi    string  `json:"status_gizi" binding:"required"` // NORMAL / STUNTING / dll
-	Catatan       string  `json:"catatan"`
+func (bc *BalitaController) UpdateBalita(c *gin.Context){
+	id := c.Param("id")
+	var balita models.Balita
+
+	// 1. Cek apakah balita dengan ID tersebut ada di database
+	if err := bc.DB.First(&balita, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data balita tidak ditemukan"})
+		return
+	}
+
+	// 2. Tangkap data JSON yang dikirim dari Frontend
+	var input UpdateBalitaInput 
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. Konversi format tanggal lahir
+	tglLahir, err := time.Parse("2006-01-02", input.TanggalLahir)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format tanggal lahir harus YYYY-MM-DD"})
+		return
+	}
+
+	// 4. Timpa data lama dengan data baru
+	balita.NIK = input.NIK
+	balita.NamaBalita = input.NamaBalita
+	balita.TanggalLahir = tglLahir
+	balita.JenisKelamin = input.JenisKelamin
+	balita.NamaOrangTua = input.NamaOrangTua
+	balita.Alamat = input.Alamat
+
+	// 5. Simpan perubahan ke database
+	if err := bc.DB.Save(&balita).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui data balita"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Data balita berhasil diperbarui",
+		"data":    balita,
+	})
 }
+
+func (bc *BalitaController) DeleteBalita(c *gin.Context){
+	id := c.Param("id")
+	var balita models.Balita
+
+	// 1. Pastikan data yang mau dihapus itu ada
+	if err := bc.DB.First(&balita, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data balita tidak ditemukan"})
+		return
+	}
+
+	// 2. Eksekusi penghapusan dari database
+	if err := bc.DB.Delete(&balita).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus data balita"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Data balita berhasil dihapus secara permanen",
+	})
+}
+
 
 // CatatPemeriksaan menyimpan hasil ukur bulanan oleh Kader/Bidan
 func (bc *BalitaController) CatatPemeriksaan(c *gin.Context) {
