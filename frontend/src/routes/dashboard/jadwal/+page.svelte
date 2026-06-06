@@ -73,18 +73,28 @@
 				const lon = position.coords.longitude;
 
 				try {
-					// Menggunakan OpenStreetMap (Nominatim) gratis untuk mengubah koordinat jadi nama tempat
+					// Menggunakan OpenStreetMap (Nominatim) gratis
 					const response = await fetch(
 						`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
 					);
 					const data = await response.json();
 
-					// Ambil data yang paling masuk akal (desa/kelurahan, kecamatan, atau nama tempat)
-					const alamatDetail =
-						data.address.village || data.address.suburb || data.address.city || data.display_name;
+					// Cara Paling Tahan Banting: Gunakan display_name yang pasti merangkai alamat terlengkap
+					if (data && data.display_name) {
+						// Contoh data.display_name: "Jalan Mawar, Kramatinggil, Gresik, Jawa Timur, 61151, Indonesia"
+						// Kita pecah teksnya berdasarkan koma
+						const bagianAlamat = data.display_name.split(', ');
 
-					// Masukkan ke dalam input form
-					formJadwal.lokasi = alamatDetail;
+						// Jika alamatnya panjang, potong 2 elemen terakhir (membuang Kode Pos dan Negara)
+						if (bagianAlamat.length > 3) {
+							formJadwal.lokasi = bagianAlamat.slice(0, -2).join(', ').trim();
+						} else {
+							// Jika datanya pendek, gunakan semua apa adanya
+							formJadwal.lokasi = data.display_name;
+						}
+					} else {
+						throw new Error('Format alamat tidak ditemukan dari API.');
+					}
 				} catch (error) {
 					console.error('Gagal mendapatkan detail alamat:', error);
 					// Jika API gagal, fallback gunakan koordinat mentah
