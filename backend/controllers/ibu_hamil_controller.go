@@ -29,6 +29,24 @@ type RegisterIbuHamilInput struct {
 	NoHP         string `json:"no_hp" binding:"required"` // Username login mandiri
 }
 
+// Struktur input pemeriksaan bulanan kehamilan
+type PeriksaIbuHamilInput struct {
+	IbuHamilID    string  `json:"ibu_hamil_id" binding:"required"`
+	UsiaKehamilan int     `json:"usia_kehamilan" binding:"required"` // Format minggu
+	TekananDarah  string  `json:"tekanan_darah" binding:"required"`  // e.g. "120/80"
+	BeratBadan    float64 `json:"berat_badan" binding:"required"`
+	Catatan       string  `json:"catatan"`
+}
+
+// Struktur input untuk Update Ibu Hamil (Tanpa NoHP karena terikat akun User)
+type UpdateIbuHamilInput struct {
+	NIK             string `json:"nik" binding:"required"`
+	NamaIbu         string `json:"nama_ibu" binding:"required"`
+	HPL             string `json:"hpl" binding:"required"` // Format: YYYY-MM-DD
+	StatusKehamilan string `json:"status_kehamilan" binding:"required"` // Normal / Risiko Tinggi / dll
+	Alamat          string `json:"alamat" binding:"required"`
+}
+
 // GetListIbuHamil mengambil seluruh data ibu hamil
 func (ic *IbuHamilController) GetListIbuHamil(c *gin.Context) {
 	var ibuHamils []models.IbuHamil
@@ -108,14 +126,74 @@ func (ic *IbuHamilController) RegisterIbuHamil(c *gin.Context) {
 	})
 }
 
-// Struktur input pemeriksaan bulanan kehamilan
-type PeriksaIbuHamilInput struct {
-	IbuHamilID    string  `json:"ibu_hamil_id" binding:"required"`
-	UsiaKehamilan int     `json:"usia_kehamilan" binding:"required"` // Format minggu
-	TekananDarah  string  `json:"tekanan_darah" binding:"required"`  // e.g. "120/80"
-	BeratBadan    float64 `json:"berat_badan" binding:"required"`
-	Catatan       string  `json:"catatan"`
+// UpdateIbuHamil mengubah data profil ibu hamil berdasarkan ID
+func (ic *IbuHamilController) UpdateIbuHamil(c *gin.Context) {
+	id := c.Param("id")
+	var ibuHamil models.IbuHamil
+
+	// 1. Cek keberadaan data
+	if err := ic.DB.First(&ibuHamil, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data Ibu Hamil tidak ditemukan"})
+		return
+	}
+
+	// 2. Bind JSON dari Frontend
+	var input UpdateIbuHamilInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. Konversi format tanggal HPL
+	hplParsed, err := time.Parse("2006-01-02", input.HPL)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format HPL harus YYYY-MM-DD"})
+		return
+	}
+
+	// 4. Timpa data lama
+	ibuHamil.NIK = input.NIK
+	ibuHamil.NamaIbu = input.NamaIbu
+	ibuHamil.HPL = hplParsed
+	ibuHamil.StatusKehamilan = input.StatusKehamilan
+	ibuHamil.Alamat = input.Alamat
+
+	// 5. Simpan ke database
+	if err := ic.DB.Save(&ibuHamil).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui data ibu hamil"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Data Ibu Hamil berhasil diperbarui",
+		"data":    ibuHamil,
+	})
 }
+
+// DeleteIbuHamil menghapus data ibu hamil berdasarkan ID
+func (ic *IbuHamilController) DeleteIbuHamil(c *gin.Context) {
+	id := c.Param("id")
+	var ibuHamil models.IbuHamil
+
+	// 1. Pastikan data ada
+	if err := ic.DB.First(&ibuHamil, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data Ibu Hamil tidak ditemukan"})
+		return
+	}
+
+	// 2. Eksekusi penghapusan
+	if err := ic.DB.Delete(&ibuHamil).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus data ibu hamil"})
+		return
+	}
+
+	// 3. Kembalikan response sukses
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Data Ibu Hamil berhasil dihapus secara permanen",
+	})
+}
+
+
 
 // CatatPemeriksaan mengamankan entri kontrol kandungan bulanan oleh Bidan atau Kader
 func (ic *IbuHamilController) CatatPemeriksaan(c *gin.Context) {
