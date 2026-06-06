@@ -48,6 +48,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				balita.POST("/register", balitaController.RegisterBalita)
 				balita.POST("/timbang", balitaController.CatatPemeriksaan)
 				balita.GET("", balitaController.GetListBalita) // API Ambil Daftar Balita
+				balita.PUT("/:id", balitaController.UpdateBalita)
+				balita.DELETE("/:id", balitaController.DeleteBalita)
 			}
 
 			// Endpoint Operasional Ibu Hamil
