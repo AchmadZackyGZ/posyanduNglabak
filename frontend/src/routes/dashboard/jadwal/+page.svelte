@@ -79,10 +79,9 @@
 					);
 					const data = await response.json();
 
-					// Cara Paling Tahan Banting: Gunakan display_name yang pasti merangkai alamat terlengkap
+					// Jika API berhasil, Gunakan display_name yang pasti merangkai alamat terlengkap
 					if (data && data.display_name) {
-						// Contoh data.display_name: "Jalan Mawar, Kramatinggil, Gresik, Jawa Timur, 61151, Indonesia"
-						// Kita pecah teksnya berdasarkan koma
+						// Pisahkan alamat menjadi bagian-bagian
 						const bagianAlamat = data.display_name.split(', ');
 
 						// Jika alamatnya panjang, potong 2 elemen terakhir (membuang Kode Pos dan Negara)
@@ -96,6 +95,7 @@
 						throw new Error('Format alamat tidak ditemukan dari API.');
 					}
 				} catch (error) {
+					// Jika API gagal, fallback ke koordinat mentah
 					console.error('Gagal mendapatkan detail alamat:', error);
 					// Jika API gagal, fallback gunakan koordinat mentah
 					formJadwal.lokasi = `${lat}, ${lon}`;
