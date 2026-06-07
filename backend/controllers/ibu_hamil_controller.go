@@ -26,6 +26,7 @@ type RegisterIbuHamilInput struct {
 	TanggalLahir string `json:"tanggal_lahir" binding:"required"` // YYYY-MM-DD
 	HPL          string `json:"hpl" binding:"required"`           // YYYY-MM-DD (Hari Perkiraan Lahir)
 	Alamat       string `json:"alamat" binding:"required"`
+	StatusKehamilan string `json:"status_kehamilan" binding:"required"` // Normal / Risiko Tinggi / dll
 	NoHP         string `json:"no_hp" binding:"required"` // Username login mandiri
 }
 
@@ -105,7 +106,7 @@ func (ic *IbuHamilController) RegisterIbuHamil(c *gin.Context) {
 		TanggalLahir:    tglLahir,
 		HPL:             hpl,
 		Alamat:          input.Alamat,
-		StatusKehamilan: "AKTIF",
+		StatusKehamilan: input.StatusKehamilan,
 	}
 
 	if err := tx.Create(&ibuHamil).Error; err != nil {
