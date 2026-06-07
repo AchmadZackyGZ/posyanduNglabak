@@ -59,6 +59,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				ibuHamil.POST("/register", ibuHamilController.RegisterIbuHamil)
 				ibuHamil.POST("/periksa", ibuHamilController.CatatPemeriksaan)
 				ibuHamil.GET("", ibuHamilController.GetListIbuHamil) // API Ambil Daftar Ibu Hamil
+				ibuHamil.PUT("/:id", ibuHamilController.UpdateIbuHamil)
+				ibuHamil.DELETE("/:id", ibuHamilController.DeleteIbuHamil)
 			}
 
 			// Endpoint Operasional Lansia
