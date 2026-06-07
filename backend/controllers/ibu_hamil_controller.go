@@ -49,15 +49,31 @@ type UpdateIbuHamilInput struct {
 
 // GetListIbuHamil mengambil seluruh data ibu hamil
 func (ic *IbuHamilController) GetListIbuHamil(c *gin.Context) {
-	var ibuHamils []models.IbuHamil
-	if err := ic.DB.Order("created_at desc").Find(&ibuHamils).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil daftar ibu hamil"})
+	 // 1. Buat struct kustom (DTO) untuk menggabungkan data IbuHamil murni dengan tambahan NoHP
+	type IbuHamilResponse struct {
+		models.IbuHamil
+		NoHP string `json:"no_hp"` // Menangkap username dari tabel users	
+	}
+
+	var results []IbuHamilResponse
+
+	// 2. Lakukan Query JOIN ke tabel users
+	// Kita menarik 'username' dari tabel users dan memberinya nama alias 'no_hp'
+	err := ic.DB.Table("ibu_hamils").
+		Select("ibu_hamils.*, users.username as no_hp").
+		Joins("left join users on users.id = ibu_hamils.user_id").
+		Order("ibu_hamils.created_at desc").
+		Scan(&results).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data ibu hamil"})
 		return
 	}
-	
+
+	// 3. Kirimkan JSON yang sudah lengkap dengan NoHP ke SvelteKit
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Berhasil mengambil daftar ibu hamil",
-		"data":    ibuHamils,
+		"data":    results,
 	})
 }
 
