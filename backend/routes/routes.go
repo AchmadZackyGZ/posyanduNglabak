@@ -70,6 +70,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				lansia.POST("/register", lansiaController.RegisterLansia)
 				lansia.POST("/periksa", lansiaController.CatatPemeriksaan)
 				lansia.GET("", lansiaController.GetListLansia) // API Ambil Daftar Lansia
+				lansia.PUT("/:id", lansiaController.UpdateLansia)
+				lansia.DELETE("/:id", lansiaController.DeleteLansia)
 			}
 
 			// Endpoint Manajemen Jadwal
