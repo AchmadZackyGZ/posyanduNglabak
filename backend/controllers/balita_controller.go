@@ -50,6 +50,13 @@ type UpdateBalitaInput struct {
 	Alamat       string `json:"alamat" binding:"required"`
 }
 
+// Struktur input pencatatan imunisasi
+type ImunisasiBalitaInput struct {
+	BalitaID       string `json:"balita_id" binding:"required"`
+	JenisImunisasi string `json:"jenis_imunisasi" binding:"required"` // e.g., "BCG", "DPT", "Campak"
+	Catatan        string `json:"catatan"`
+}
+
 // GetListBalita mengambil seluruh data balita secara menurun (terbaru di atas)
 func (bc *BalitaController) GetListBalita(c *gin.Context) {
 	var balitas []models.Balita
@@ -126,6 +133,79 @@ func (bc *BalitaController) RegisterBalita(c *gin.Context) {
 			"nama":      balita.NamaBalita,
 			"ortu_akun": ortu.Username,
 		},
+	})
+}
+
+// GetRiwayatTimbang mengambil seluruh data rekam medis penimbangan balita
+func (bc *BalitaController) GetRiwayatTimbang(c *gin.Context) {
+	var riwayat []models.PemeriksaanBalita
+	
+	// Preload("Pemeriksa") berfungsi seperti JOIN untuk menarik nama Bidan/Kader dari tabel User
+	query := bc.DB.Preload("Pemeriksa").Order("tanggal_periksa desc")
+
+	// Fitur Canggih: Jika ada query ?balita_id=xxx, filter hanya untuk 1 balita itu saja
+	if balitaID := c.Query("balita_id"); balitaID != "" {
+		query = query.Where("balita_id = ?", balitaID)
+	}
+
+	if err := query.Find(&riwayat).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil riwayat pemeriksaan balita"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengambil riwayat timbang",
+		"data":    riwayat,
+	})
+}
+
+// GetRiwayatImunisasi mengambil seluruh riwayat pemberian vaksin
+func (bc *BalitaController) GetRiwayatImunisasi(c *gin.Context) {
+	var riwayat []models.ImunisasiBalita
+	
+	query := bc.DB.Preload("Pencatat").Order("tanggal_imunisasi desc")
+
+	if balitaID := c.Query("balita_id"); balitaID != "" {
+		query = query.Where("balita_id = ?", balitaID)
+	}
+
+	if err := query.Find(&riwayat).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil riwayat imunisasi balita"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengambil riwayat imunisasi",
+		"data":    riwayat,
+	})
+}
+
+// CatatImunisasi menyimpan data pemberian vaksin/imunisasi
+func (bc *BalitaController) CatatImunisasi(c *gin.Context) {
+	var input ImunisasiBalitaInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	petugasID, _ := c.Get("userID")
+
+	imunisasi := models.ImunisasiBalita{
+		BalitaID:         input.BalitaID,
+		JenisImunisasi:   input.JenisImunisasi,
+		TanggalImunisasi: time.Now(),
+		Catatan:          input.Catatan,
+		DicatatOleh:      petugasID.(string),
+	}
+
+	if err := bc.DB.Create(&imunisasi).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan data imunisasi"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Data imunisasi berhasil dicatat",
+		"data":    imunisasi,
 	})
 }
 
