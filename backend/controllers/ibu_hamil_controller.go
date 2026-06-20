@@ -143,6 +143,29 @@ func (ic *IbuHamilController) RegisterIbuHamil(c *gin.Context) {
 	})
 }
 
+// GetRiwayatPeriksa mengambil seluruh data rekam medis kontrol kehamilan
+func (ic *IbuHamilController) GetRiwayatPeriksa(c *gin.Context) {
+	var riwayat []models.PemeriksaanIbuHamil
+	
+	// Preload("Pemeriksa") untuk menarik data Bidan/Kader dari tabel User
+	query := ic.DB.Preload("Pemeriksa").Order("tanggal_periksa desc")
+
+	// Fitur Filter: Jika ada query ?ibu_hamil_id=xxx, filter hanya untuk ibu hamil tersebut
+	if ibuHamilID := c.Query("ibu_hamil_id"); ibuHamilID != "" {
+		query = query.Where("ibu_hamil_id = ?", ibuHamilID)
+	}
+
+	if err := query.Find(&riwayat).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil riwayat pemeriksaan Ibu Hamil"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengambil riwayat pemeriksaan",
+		"data":    riwayat,
+	})
+}
+
 // UpdateIbuHamil mengubah data profil ibu hamil berdasarkan ID
 func (ic *IbuHamilController) UpdateIbuHamil(c *gin.Context) {
 	id := c.Param("id")
