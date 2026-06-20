@@ -176,6 +176,29 @@ func (lc *LansiaController) DeleteLansia(c *gin.Context) {
 	})
 }
 
+// GetRiwayatPeriksa mengambil seluruh data rekam medis kontrol lansia
+func (lc *LansiaController) GetRiwayatPeriksa(c *gin.Context) {
+	var riwayat []models.PemeriksaanLansia
+	
+	// Preload("Pemeriksa") untuk menarik data Bidan/Kader dari tabel User
+	query := lc.DB.Preload("Pemeriksa").Order("tanggal_periksa desc")
+
+	// Fitur Filter: Jika ada query ?lansia_id=xxx, filter hanya untuk lansia tersebut
+	if lansiaID := c.Query("lansia_id"); lansiaID != "" {
+		query = query.Where("lansia_id = ?", lansiaID)
+	}
+
+	if err := query.Find(&riwayat).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil riwayat pemeriksaan Lansia"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengambil riwayat pemeriksaan",
+		"data":    riwayat,
+	})
+}
+
 
 // CatatPemeriksaan mengamankan entri rekam medis bulanan beserta ID pemeriksa
 func (lc *LansiaController) CatatPemeriksaan(c *gin.Context) {
