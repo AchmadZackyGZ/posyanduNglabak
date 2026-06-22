@@ -140,15 +140,19 @@
 		};
 	}
 
-	// --- HELPER UI ---
 	function hitungGizi() {
-		if (!beratInput || !tinggiInput) return;
-		const score = beratInput / (tinggiInput / 10);
-		if (score < 1.1) hasilStatusGizi = 'Gizi Buruk';
-		else if (score < 1.3) hasilStatusGizi = 'Gizi Kurang';
-		else if (score < 1.8) hasilStatusGizi = 'Normal';
-		else hasilStatusGizi = 'Gizi Lebih';
-	}
+    if (!beratInput || !tinggiInput) return;
+    
+    // Konversi tinggi dari cm ke meter
+    const tinggiMeter = tinggiInput / 100;
+    // Rumus IMT standar
+    const imt = beratInput / (tinggiMeter * tinggiMeter);
+
+    if (imt < 14) hasilStatusGizi = 'Gizi Buruk';
+    else if (imt >= 14 && imt < 17) hasilStatusGizi = 'Gizi Kurang';
+    else if (imt >= 17 && imt <= 19) hasilStatusGizi = 'Normal';
+    else hasilStatusGizi = 'Gizi Lebih';
+}
 
 	function resetKalkulator() {
 		beratInput = null;
