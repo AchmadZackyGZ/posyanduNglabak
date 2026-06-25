@@ -41,6 +41,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				dashboard.GET("/summary", dashboardController.GetSummary)
 			}
 
+			laporan := protected.Group("/laporan")
+	
+			// Hak akses laporan diberikan kepada ADMIN, BIDAN, dan KADER
+			laporan.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			{
+				// Endpoint API Laporan Balita
+				laporan.GET("/balita", controllers.GetLaporanBalita)
+				
+				// Tempat untuk endpoint laporan Ibu Hamil dan Lansia selanjutnya...
+			}
+
 			// Endpoint Operasional Balita
 			balita := protected.Group("/balita")
 			balita.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
