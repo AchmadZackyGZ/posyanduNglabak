@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	// Sesuaikan dengan path import models dan config database Anda
+
 	"posyandu-api/config"
 	"posyandu-api/models"
 )
@@ -35,6 +35,45 @@ type LaporanBalitaResponse struct {
 	Data    []DetailLaporanBalita `json:"data"`
 }
 
+type RekapIbuHamilSummary struct {
+	TotalIbuHamil     int64 `json:"total_ibu_hamil"`
+	IbuHamilDiperiksa int64 `json:"ibu_hamil_diperiksa"`
+}
+
+type DetailLaporanIbuHamil struct {
+	No             int     `json:"no"`
+	NamaIbu        string  `json:"nama_ibu"`
+	UsiaKandungan  int     `json:"usia_kandungan"`
+	TekananDarah   string  `json:"tekanan_darah"`
+	BeratKG        float64 `json:"berat_kg"`
+	Catatan        string  `json:"catatan"`
+}
+
+type LaporanIbuHamilResponse struct {
+	Summary RekapIbuHamilSummary    `json:"summary"`
+	Data    []DetailLaporanIbuHamil `json:"data"`
+}
+
+type RekapLansiaSummary struct {
+	TotalLansia     int64 `json:"total_lansia"`
+	LansiaDiperiksa int64 `json:"lansia_diperiksa"`
+}
+
+type DetailLaporanLansia struct {
+	No           int     `json:"no"`
+	NamaLansia   string  `json:"nama_lansia"`
+	Usia         string  `json:"usia"`
+	TekananDarah string  `json:"tekanan_darah"`
+	GulaDarah    float64 `json:"gula_darah"`
+	Kolesterol   float64 `json:"kolesterol"`
+	Catatan      string  `json:"catatan"`
+}
+
+type LaporanLansiaResponse struct {
+	Summary RekapLansiaSummary    `json:"summary"`
+	Data    []DetailLaporanLansia `json:"data"`
+}
+
 // --- Helper Functions ---
 
 // HitungUsia menghitung selisih waktu menjadi format "X th Y bln"
@@ -57,6 +96,7 @@ func HitungUsia(tanggalLahir, tanggalPeriksa time.Time) string {
 }
 
 // --- Controller Main Function ---
+// laporan balita
 
 func GetLaporanBalita(c *gin.Context) {
 	periode := c.Query("periode") // Expected format: "2024-05"
@@ -132,6 +172,105 @@ func GetLaporanBalita(c *gin.Context) {
 	// 5. Kirim Respons
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Berhasil mengambil rekap laporan balita",
+		"data":    response,
+	})
+}
+
+// laporan ibu hamil
+
+func GetLaporanIbuHamil(c *gin.Context) {
+	periode := c.Query("periode")
+	if periode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter periode (YYYY-MM) wajib diisi"})
+		return
+	}
+
+	db := config.DB
+	var response LaporanIbuHamilResponse
+
+	// 1. Hitung Total Ibu Hamil Keseluruhan
+	db.Model(&models.IbuHamil{}).Count(&response.Summary.TotalIbuHamil)
+
+	// 2. Ambil Data Pemeriksaan Bulan Ini beserta Data Ibu Hamilnya
+	var pemeriksaanBulanIni []models.PemeriksaanIbuHamil
+	err := db.Preload("IbuHamil").
+		Where("TO_CHAR(tanggal_periksa, 'YYYY-MM') = ?", periode).
+		Order("tanggal_periksa ASC").
+		Find(&pemeriksaanBulanIni).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data pemeriksaan ibu hamil"})
+		return
+	}
+
+	response.Summary.IbuHamilDiperiksa = int64(len(pemeriksaanBulanIni))
+
+	// 3. Masukkan ke array detail data
+	for i, p := range pemeriksaanBulanIni {
+		detail := DetailLaporanIbuHamil{
+			No:            i + 1,
+			NamaIbu:       p.IbuHamil.NamaIbu,
+			UsiaKandungan: p.UsiaKehamilan,
+			TekananDarah:  p.TekananDarah,
+			BeratKG:       p.BeratBadan,
+			Catatan:       p.Catatan,
+		}
+		response.Data = append(response.Data, detail)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengambil rekap laporan ibu hamil",
+		"data":    response,
+	})
+}
+
+// laporan lansia
+
+func GetLaporanLansia(c *gin.Context) {
+	periode := c.Query("periode")
+	if periode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter periode (YYYY-MM) wajib diisi"})
+		return
+	}
+
+	db := config.DB
+	var response LaporanLansiaResponse
+
+	// 1. Hitung Total Lansia Keseluruhan
+	db.Model(&models.Lansia{}).Count(&response.Summary.TotalLansia)
+
+	// 2. Ambil Data Pemeriksaan Bulan Ini beserta Data Lansianya
+	var pemeriksaanBulanIni []models.PemeriksaanLansia
+	err := db.Preload("Lansia").
+		Where("TO_CHAR(tanggal_periksa, 'YYYY-MM') = ?", periode).
+		Order("tanggal_periksa ASC").
+		Find(&pemeriksaanBulanIni).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data pemeriksaan lansia"})
+		return
+	}
+
+	response.Summary.LansiaDiperiksa = int64(len(pemeriksaanBulanIni))
+
+	// 3. Masukkan ke array detail data
+	for i, p := range pemeriksaanBulanIni {
+		usiaStr := HitungUsia(p.Lansia.TanggalLahir, p.TanggalPeriksa)
+
+		detail := DetailLaporanLansia{
+			No:           i + 1,
+			NamaLansia:   p.Lansia.NamaLengkap,
+			Usia:         usiaStr,
+			TekananDarah: p.TekananDarah,
+			GulaDarah:    p.GulaDarah,
+			Kolesterol:   p.Kolesterol,
+			Catatan:      p.Catatan,
+		}
+		response.Data = append(response.Data, detail)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengambil rekap laporan lansia",
 		"data":    response,
 	})
 }
