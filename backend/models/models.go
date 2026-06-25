@@ -101,6 +101,7 @@ type PemeriksaanBalita struct {
 	CreatedAt      time.Time `json:"created_at"`
 
 	Pemeriksa User `gorm:"foreignKey:DiperiksaOleh" json:"pemeriksa"`
+	Balita Balita `gorm:"foreignKey:BalitaID" json:"balita"`
 }
 
 type ImunisasiBalita struct {
@@ -113,6 +114,7 @@ type ImunisasiBalita struct {
 	CreatedAt        time.Time `json:"created_at"`
 
 	Pencatat User `gorm:"foreignKey:DicatatOleh" json:"pencatat"`
+	Balita  Balita `gorm:"foreignKey:BalitaID" json:"balita"`
 }
 
 type PemeriksaanIbuHamil struct {
@@ -127,6 +129,7 @@ type PemeriksaanIbuHamil struct {
 	CreatedAt      time.Time `json:"created_at"`
 
 	Pemeriksa User `gorm:"foreignKey:DiperiksaOleh" json:"pemeriksa"`
+	IbuHamil IbuHamil `gorm:"foreignKey:IbuHamilID" json:"ibu_hamil"`
 }
 
 type PemeriksaanLansia struct {
@@ -141,4 +144,5 @@ type PemeriksaanLansia struct {
 	CreatedAt      time.Time `json:"created_at"`
 
 	Pemeriksa User `gorm:"foreignKey:DiperiksaOleh" json:"pemeriksa"`
+	Lansia  Lansia `gorm:"foreignKey:LansiaID" json:"lansia"`
 }
