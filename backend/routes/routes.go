@@ -49,7 +49,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				// Endpoint API Laporan Balita
 				laporan.GET("/balita", controllers.GetLaporanBalita)
 				
-				// Tempat untuk endpoint laporan Ibu Hamil dan Lansia selanjutnya...
+				// Endpoint API Laporan Ibu Hamil
+				laporan.GET("/ibu-hamil", controllers.GetLaporanIbuHamil)
+				
+				// Endpoint API Laporan Lansia
+				laporan.GET("/lansia", controllers.GetLaporanLansia)
 			}
 
 			// Endpoint Operasional Balita
