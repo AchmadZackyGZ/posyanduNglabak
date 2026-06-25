@@ -11,6 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
+var DB *gorm.DB
+
+
 func ConnectDB() *gorm.DB {
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Jakarta",
 		os.Getenv("DB_HOST"),
