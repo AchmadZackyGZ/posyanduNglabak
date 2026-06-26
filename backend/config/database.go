@@ -28,6 +28,8 @@ func ConnectDB() *gorm.DB {
 		log.Fatal("❌ Gagal koneksi ke database PostgreSQL:", err)
 	}
 
+	DB = db // Simpan instance DB ke variabel global
+
 	fmt.Println("✅ Berhasil terhubung ke database Posyandu di Port:", os.Getenv("DB_PORT"))
 
 	// Jalankan AutoMigrate
