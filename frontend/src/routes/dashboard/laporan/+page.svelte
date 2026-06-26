@@ -1,64 +1,153 @@
 <script lang="ts">
-	import { FileText, FileSpreadsheet } from 'lucide-svelte';
+	/* eslint-disable svelte/no-navigation-without-resolve */
+	import { onMount } from 'svelte';
+	import { fetchAPI } from '$lib/api';
+	import { FileText, FileSpreadsheet, Printer } from 'lucide-svelte';
+
+	// DTO LAPORAN
+	interface DetailLaporan {
+		no: number;
+		// Parameter Khusus Balita
+		nama_balita?: string;
+		usia?: string; // Dipakai Balita & Lansia
+		jk?: string;
+		berat_kg?: number; // Dipakai Balita & Bumil
+		tinggi_cm?: number;
+		status_gizi: string;
+
+		// Parameter Khusus Ibu Hamil
+		nama_ibu?: string;
+		usia_kandungan?: number;
+		tekanan_darah?: string; // Dipakai Bumil & Lansia
+		catatan?: string; // Dipakai Bumil & Lansia
+
+		// Parameter Khusus Lansia
+		nama_lansia?: string;
+		gula_darah?: number;
+		kolesterol?: number;
+	}
 
 	// --- STATE MANAGEMENT ---
-	let selectedJenisLaporan = $state('Rekap Data Balita');
-	let selectedPeriode = $state('Mei 2024');
+	let selectedJenisLaporan = $state('balita'); // 'balita' | 'ibu-hamil' | 'lansia'
 
-	// DATA DUMMY: Ringkasan Metrik
+	// Default periode: Bulan ini (YYYY-MM)
+	let selectedPeriode = $state(new Date().toISOString().slice(0, 7));
+	let isLoading = $state(false);
+
+	// State Data
 	let summaryStats = $state({
-		totalBalita: 86,
-		balitaDitimbang: 62,
-		balitaNaik: 40,
-		balitaTurun: 5
+		label1: 'Total',
+		val1: 0,
+		label2: 'Diperiksa',
+		val2: 0,
+		label3: 'Naik BB',
+		val3: 0,
+		label4: 'Turun BB',
+		val4: 0
+	});
+	let laporanList = $state<DetailLaporan[]>([]);
+
+	// --- FUNGSI AMBIL DATA DARI API GOLANG ---
+	async function loadLaporan() {
+		if (!selectedPeriode) return;
+		isLoading = true;
+		try {
+			const res = await fetchAPI(`/laporan/${selectedJenisLaporan}?periode=${selectedPeriode}`);
+			if (res.data) {
+				laporanList = res.data.data || [];
+
+				// Pemetaan Ringkasan Dinamis
+				if (selectedJenisLaporan === 'balita') {
+					summaryStats = {
+						label1: 'Total Balita',
+						val1: res.data.summary.total_balita,
+						label2: 'Balita Ditimbang',
+						val2: res.data.summary.balita_ditimbang,
+						label3: 'Balita Naik BB',
+						val3: res.data.summary.balita_naik_bb,
+						label4: 'Balita Turun BB',
+						val4: res.data.summary.balita_turun_bb
+					};
+				} else if (selectedJenisLaporan === 'ibu-hamil') {
+					summaryStats = {
+						label1: 'Total Ibu Hamil',
+						val1: res.data.summary.total_ibu_hamil,
+						label2: 'Ibu Diperiksa',
+						val2: res.data.summary.ibu_hamil_diperiksa,
+						label3: '-',
+						val3: 0,
+						label4: '-',
+						val4: 0
+					};
+				} else if (selectedJenisLaporan === 'lansia') {
+					summaryStats = {
+						label1: 'Total Lansia',
+						val1: res.data.summary.total_lansia,
+						label2: 'Lansia Diperiksa',
+						val2: res.data.summary.lansia_diperiksa,
+						label3: '-',
+						val3: 0,
+						label4: '-',
+						val4: 0
+					};
+				}
+			}
+		} catch (error) {
+			console.error('Gagal memuat laporan:', error);
+			alert('Gagal mengambil data laporan dari server.');
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	// Fetch pertama kali saat komponen dimuat
+	onMount(() => {
+		loadLaporan();
 	});
 
-	// DATA DUMMY: Tabel Laporan
-	let laporanList = $state([
-		{
-			id: 1,
-			nama: 'Aisyah Putri',
-			usia: '1 th 2 bln',
-			jk: 'Perempuan',
-			berat: 9.2,
-			tinggi: 74,
-			statusGizi: 'Normal'
-		},
-		{
-			id: 2,
-			nama: 'Muhammad Zaki',
-			usia: '2 th 1 bln',
-			jk: 'Laki-laki',
-			berat: 11.5,
-			tinggi: 85,
-			statusGizi: 'Normal'
-		},
-		{
-			id: 3,
-			nama: 'Qonita Nurul',
-			usia: '8 bln',
-			jk: 'Perempuan',
-			berat: 6.8,
-			tinggi: 65,
-			statusGizi: 'Kurang'
-		},
-		{
-			id: 4,
-			nama: 'Fathan Alfarizi',
-			usia: '3 th 5 bln',
-			jk: 'Laki-laki',
-			berat: 14.2,
-			tinggi: 96,
-			statusGizi: 'Normal'
+	// --- FITUR EKSPOR RAKITAN SENDIRI (NATIVE) ---
+
+	// 1. Export ke Excel (CSV format)
+	function exportToExcel() {
+		if (laporanList.length === 0) {
+			alert('Tidak ada data untuk diekspor!');
+			return;
 		}
-	]);
+		// Ambil header dari keys array object pertama
+		const headers = Object.keys(laporanList[0]).join(',');
+		// Map isi data menjadi comma-separated
+		const csvRows = laporanList.map((row) => {
+			return Object.values(row)
+				.map((value) => `"${value}"`)
+				.join(',');
+		});
+
+		const csvData = [headers, ...csvRows].join('\n');
+		const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+		const url = window.URL.createObjectURL(blob);
+
+		const a = document.createElement('a');
+		a.setAttribute('href', url);
+		a.setAttribute('download', `Laporan_${selectedJenisLaporan}_${selectedPeriode}.csv`);
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	}
+
+	// 2. Export ke PDF (via Native Print Browser)
+	function exportToPDF() {
+		window.print();
+	}
 
 	// Helper warna badge status gizi
 	function getStatusColor(status: string) {
-		if (status === 'Normal') return 'bg-green-50 text-green-600 border-green-200';
-		if (status === 'Kurang') return 'bg-amber-50 text-amber-600 border-amber-200';
-		if (status === 'Buruk') return 'bg-red-50 text-red-600 border-red-200';
-		return 'bg-gray-50 text-gray-600 border-gray-200';
+		const s = status ? status.toUpperCase() : '';
+		if (s.includes('NORMAL') || s.includes('BAIK'))
+			return 'bg-green-50 text-green-600 border-green-200';
+		if (s.includes('KURANG')) return 'bg-amber-50 text-amber-600 border-amber-200';
+		if (s.includes('BURUK') || s.includes('STUNTING'))
+			return 'bg-red-50 text-red-600 border-red-200';
+		return 'bg-blue-50 text-blue-600 border-blue-200';
 	}
 </script>
 
@@ -66,26 +155,27 @@
 	<title>Laporan - POSYANDU Sehat Bersama</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="print-container space-y-6">
 	<div class="border-b border-gray-100 pb-4">
-		<h1 class="text-2xl font-black text-gray-900">Laporan</h1>
+		<h1 class="text-2xl font-black text-gray-900">Laporan & Arsip</h1>
 	</div>
 
-	<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+	<!-- FILTER SECTION (Disembunyikan saat cetak PDF) -->
+	<div class="no-print rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
 		<div class="mb-6 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
 			<h2 class="text-base font-bold text-gray-800">Filter Laporan</h2>
 			<div class="flex items-center gap-3">
 				<button
-					class="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50 active:scale-95"
+					onclick={exportToPDF}
+					class="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 active:scale-95"
 				>
-					<FileText size={16} class="text-gray-500" />
-					PDF
+					<FileText size={16} /> Cetak PDF
 				</button>
 				<button
-					class="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50 active:scale-95"
+					onclick={exportToExcel}
+					class="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:border-green-200 hover:bg-green-50 hover:text-green-600 active:scale-95"
 				>
-					<FileSpreadsheet size={16} class="text-gray-500" />
-					Excel
+					<FileSpreadsheet size={16} /> Unduh Excel (CSV)
 				</button>
 			</div>
 		</div>
@@ -95,60 +185,76 @@
 				<label class="mb-2 block text-xs font-bold text-gray-600">Jenis Laporan</label>
 				<select
 					bind:value={selectedJenisLaporan}
-					class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064]"
+					onchange={loadLaporan}
+					class="w-full cursor-pointer rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064]"
 				>
-					<option value="Rekap Data Balita">Rekap Data Balita</option>
-					<option value="Rekap Pemeriksaan">Rekap Pemeriksaan</option>
-					<option value="Status Gizi">Status Gizi</option>
-					<option value="Kegiatan Posyandu">Kegiatan Posyandu</option>
+					<option value="balita">Rekap Data Balita</option>
+					<option value="ibu-hamil">Rekap Pemeriksaan Ibu Hamil</option>
+					<option value="lansia">Rekap Kesehatan Lansia</option>
 				</select>
 			</div>
 			<div>
-				<label class="mb-2 block text-xs font-bold text-gray-600">Periode</label>
-				<select
+				<label class="mb-2 block text-xs font-bold text-gray-600">Periode (Bulan & Tahun)</label>
+				<input
+					type="month"
 					bind:value={selectedPeriode}
-					class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064]"
-				>
-					<option value="Mei 2024">Mei 2024</option>
-					<option value="April 2024">April 2024</option>
-					<option value="Maret 2024">Maret 2024</option>
-				</select>
+					onchange={loadLaporan}
+					class="w-full cursor-text rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064]"
+				/>
 			</div>
 		</div>
 	</div>
 
+	<!-- HASIL LAPORAN -->
 	<div class="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-		<div class="border-b border-gray-100 p-6">
-			<h2 class="text-lg font-black text-gray-800">{selectedJenisLaporan} – {selectedPeriode}</h2>
+		<div class="flex items-center justify-between border-b border-gray-100 p-6">
+			<h2 class="text-lg font-black tracking-wide text-gray-800 uppercase">
+				LAPORAN {selectedJenisLaporan.replace('-', ' ')} – {selectedPeriode}
+			</h2>
+			<Printer size={20} class="hidden text-gray-300 print:block" />
 		</div>
 
 		<div class="p-6">
+			<!-- RINGKASAN METRIK DINAMIS -->
 			<div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<div class="rounded-xl border border-green-100 bg-green-50/50 p-5">
-					<p class="text-xs font-bold text-green-700">Total Balita</p>
-					<p class="mt-1 text-3xl font-black text-green-600">{summaryStats.totalBalita}</p>
+					<p class="text-xs font-bold text-green-700">{summaryStats.label1}</p>
+					<p class="mt-1 text-3xl font-black text-green-600">
+						{isLoading ? '...' : summaryStats.val1}
+					</p>
 					<p class="text-[11px] font-medium text-green-600/70">Orang</p>
 				</div>
 
 				<div class="rounded-xl border border-blue-100 bg-blue-50/50 p-5">
-					<p class="text-xs font-bold text-blue-700">Balita Ditimbang</p>
-					<p class="mt-1 text-3xl font-black text-blue-600">{summaryStats.balitaDitimbang}</p>
+					<p class="text-xs font-bold text-blue-700">{summaryStats.label2}</p>
+					<p class="mt-1 text-3xl font-black text-blue-600">
+						{isLoading ? '...' : summaryStats.val2}
+					</p>
 					<p class="text-[11px] font-medium text-blue-600/70">Orang</p>
 				</div>
 
-				<div class="rounded-xl border border-amber-100 bg-amber-50/40 p-5">
-					<p class="text-xs font-bold text-amber-700">Balita Naik BB</p>
-					<p class="mt-1 text-3xl font-black text-amber-600">{summaryStats.balitaNaik}</p>
-					<p class="text-[11px] font-medium text-amber-600/70">Orang</p>
-				</div>
+				{#if summaryStats.label3 !== '-'}
+					<div class="rounded-xl border border-amber-100 bg-amber-50/40 p-5">
+						<p class="text-xs font-bold text-amber-700">{summaryStats.label3}</p>
+						<p class="mt-1 text-3xl font-black text-amber-600">
+							{isLoading ? '...' : summaryStats.val3}
+						</p>
+						<p class="text-[11px] font-medium text-amber-600/70">Anak</p>
+					</div>
+				{/if}
 
-				<div class="rounded-xl border border-red-100 bg-red-50/50 p-5">
-					<p class="text-xs font-bold text-red-700">Balita Turun BB</p>
-					<p class="mt-1 text-3xl font-black text-red-600">{summaryStats.balitaTurun}</p>
-					<p class="text-[11px] font-medium text-red-600/70">Orang</p>
-				</div>
+				{#if summaryStats.label4 !== '-'}
+					<div class="rounded-xl border border-red-100 bg-red-50/50 p-5">
+						<p class="text-xs font-bold text-red-700">{summaryStats.label4}</p>
+						<p class="mt-1 text-3xl font-black text-red-600">
+							{isLoading ? '...' : summaryStats.val4}
+						</p>
+						<p class="text-[11px] font-medium text-red-600/70">Anak</p>
+					</div>
+				{/if}
 			</div>
 
+			<!-- TABEL DINAMIS -->
 			<div class="w-full overflow-x-auto rounded-xl border border-gray-100">
 				<table class="w-full min-w-[900px] text-left text-sm text-gray-600">
 					<thead
@@ -156,30 +262,75 @@
 					>
 						<tr>
 							<th class="w-16 px-6 py-4 text-center">NO</th>
-							<th class="px-6 py-4 text-center">NAMA BALITA</th>
-							<th class="px-6 py-4 text-center">USIA</th>
-							<th class="px-6 py-4 text-center">JK</th>
-							<th class="px-6 py-4 text-center">BERAT (KG)</th>
-							<th class="px-6 py-4 text-center">TINGGI (CM)</th>
-							<th class="px-6 py-4 text-center">STATUS GIZI</th>
+							{#if selectedJenisLaporan === 'balita'}
+								<th class="px-6 py-4">NAMA BALITA</th><th class="px-6 py-4 text-center">USIA</th><th
+									class="px-6 py-4 text-center">JK</th
+								><th class="px-6 py-4 text-center">BERAT (KG)</th><th class="px-6 py-4 text-center"
+									>TINGGI (CM)</th
+								><th class="px-6 py-4 text-center">STATUS GIZI</th>
+							{:else if selectedJenisLaporan === 'ibu-hamil'}
+								<th class="px-6 py-4">NAMA IBU</th><th class="px-6 py-4 text-center"
+									>USIA KANDUNGAN</th
+								><th class="px-6 py-4 text-center">TENSI</th><th class="px-6 py-4 text-center"
+									>BERAT (KG)</th
+								><th class="px-6 py-4">CATATAN</th>
+							{:else if selectedJenisLaporan === 'lansia'}
+								<th class="px-6 py-4">NAMA LANSIA</th><th class="px-6 py-4 text-center">USIA</th><th
+									class="px-6 py-4 text-center">TENSI</th
+								><th class="px-6 py-4 text-center">GULA DARAH</th><th class="px-6 py-4 text-center"
+									>KOLESTEROL</th
+								>
+							{/if}
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-50 bg-white">
-						{#each laporanList as row, index (row.id)}
+						{#if isLoading}
+							<tr
+								><td colspan="7" class="px-6 py-8 text-center text-gray-400">Memuat laporan...</td
+								></tr
+							>
+						{:else if laporanList.length === 0}
+							<tr
+								><td colspan="7" class="px-6 py-8 text-center text-gray-400"
+									>Tidak ada data rekam medis pada periode ini.</td
+								></tr
+							>
+						{/if}
+
+						{#each laporanList as row, index (row.no)}
 							<tr class="transition-colors hover:bg-gray-50/50">
 								<td class="px-6 py-4 text-center font-medium text-gray-400">{index + 1}</td>
-								<td class="px-6 py-4 text-center font-bold text-gray-800">{row.nama}</td>
-								<td class="px-6 py-4 text-center text-gray-600">{row.usia}</td>
-								<td class="px-6 py-4 text-center text-gray-600">{row.jk}</td>
-								<td class="px-6 py-4 text-center font-medium text-gray-700">{row.berat}</td>
-								<td class="px-6 py-4 text-center font-medium text-gray-700">{row.tinggi}</td>
-								<td class="px-6 py-4 text-center">
-									<span
-										class={`rounded-md border px-2.5 py-1 text-xs font-bold ${getStatusColor(row.statusGizi)}`}
+								{#if selectedJenisLaporan === 'balita'}
+									<td class="px-6 py-4 font-bold text-gray-800">{row.nama_balita}</td>
+									<td class="px-6 py-4 text-center text-gray-600">{row.usia}</td>
+									<td class="px-6 py-4 text-center text-gray-600">{row.jk}</td>
+									<td class="px-6 py-4 text-center font-medium text-gray-700">{row.berat_kg}</td>
+									<td class="px-6 py-4 text-center font-medium text-gray-700">{row.tinggi_cm}</td>
+									<td class="px-6 py-4 text-center"
+										><span
+											class={`rounded-md border px-2.5 py-1 text-[10px] font-bold ${getStatusColor(row.status_gizi)}`}
+											>{row.status_gizi}</span
+										></td
 									>
-										{row.statusGizi}
-									</span>
-								</td>
+								{:else if selectedJenisLaporan === 'ibu-hamil'}
+									<td class="px-6 py-4 font-bold text-gray-800">{row.nama_ibu}</td>
+									<td class="px-6 py-4 text-center font-bold text-[#117064]"
+										>{row.usia_kandungan} Mgg</td
+									>
+									<td class="px-6 py-4 text-center font-bold text-red-500">{row.tekanan_darah}</td>
+									<td class="px-6 py-4 text-center font-medium text-gray-700">{row.berat_kg}</td>
+									<td class="px-6 py-4 text-xs text-gray-500">{row.catatan || '-'}</td>
+								{:else if selectedJenisLaporan === 'lansia'}
+									<td class="px-6 py-4 font-bold text-gray-800">{row.nama_lansia}</td>
+									<td class="px-6 py-4 text-center text-gray-600">{row.usia}</td>
+									<td class="px-6 py-4 text-center font-bold text-red-500">{row.tekanan_darah}</td>
+									<td class="px-6 py-4 text-center font-bold text-amber-600"
+										>{row.gula_darah ? `${row.gula_darah} mg/dL` : '-'}</td
+									>
+									<td class="px-6 py-4 text-center font-bold text-blue-600"
+										>{row.kolesterol ? `${row.kolesterol} mg/dL` : '-'}</td
+									>
+								{/if}
 							</tr>
 						{/each}
 					</tbody>
@@ -188,3 +339,22 @@
 		</div>
 	</div>
 </div>
+
+<!-- CSS KHUSUS UNTUK MODE CETAK (PDF) -->
+<style>
+	@media print {
+		/* Sembunyikan elemen yang tidak perlu dicetak (Sidebar, Tombol, dll) */
+		:global(.no-print) {
+			display: none !important;
+		}
+		/* Hilangkan background dan bayangan agar tinta hemat */
+		.print-container {
+			box-shadow: none !important;
+			border: none !important;
+		}
+		/* Pastikan margin halaman bersih */
+		@page {
+			margin: 1cm;
+		}
+	}
+</style>
