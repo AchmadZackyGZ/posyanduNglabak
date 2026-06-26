@@ -40,6 +40,15 @@ type RegisterBalitaInput struct {
 	NoHP         string `json:"no_hp" binding:"required"` // Digunakan sebagai username ortu
 }
 
+// --- DTO Update ---
+type UpdatePemeriksaanBalitaInput struct {
+	BeratBadan    float64 `json:"berat_badan"`
+	TinggiBadan   float64 `json:"tinggi_badan"`
+	LingkarKepala float64 `json:"lingkar_kepala"`
+	StatusGizi    string  `json:"status_gizi"`
+	Catatan       string  `json:"catatan"`
+}
+
 // Struktur input untuk Update Balita (Tanpa NoHP karena NoHP terikat di tabel User)
 type UpdateBalitaInput struct {
 	NIK          string `json:"nik" binding:"required"`
@@ -306,4 +315,37 @@ func (bc *BalitaController) CatatPemeriksaan(c *gin.Context) {
 		"message": "Hasil pemeriksaan berhasil dicatat",
 		"data":    pemeriksaan,
 	})
+}
+
+func (bc *BalitaController) UpdatePemeriksaan(c *gin.Context) {
+	id := c.Param("id")
+	var input UpdatePemeriksaanBalitaInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format input tidak valid"})
+		return
+	}
+
+	var pemeriksaan models.PemeriksaanBalita
+	if err := bc.DB.Where("id = ?", id).First(&pemeriksaan).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data rekam medis tidak ditemukan"})
+		return
+	}
+
+	pemeriksaan.BeratBadan = input.BeratBadan
+	pemeriksaan.TinggiBadan = input.TinggiBadan
+	pemeriksaan.LingkarKepala = input.LingkarKepala
+	pemeriksaan.StatusGizi = input.StatusGizi
+	pemeriksaan.Catatan = input.Catatan
+
+	bc.DB.Save(&pemeriksaan)
+	c.JSON(http.StatusOK, gin.H{"message": "Rekam medis balita berhasil diperbarui"})
+}
+
+func (bc *BalitaController) DeletePemeriksaan(c *gin.Context) {
+	id := c.Param("id")
+	if err := bc.DB.Where("id = ?", id).Delete(&models.PemeriksaanBalita{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus rekam medis"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Rekam medis balita berhasil dihapus"})
 }
