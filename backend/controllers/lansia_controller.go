@@ -42,6 +42,14 @@ type UpdateLansiaInput struct {
 	Status         string `json:"status"` // Opsional: Untuk mengubah status (misal: AKTIF/PINDAH/MENINGGAL)
 }
 
+// --- DTO Update ---
+type UpdatePemeriksaanLansiaInput struct {
+	TekananDarah string  `json:"tekanan_darah"`
+	GulaDarah    float64 `json:"gula_darah"`
+	Kolesterol   float64 `json:"kolesterol"`
+	Catatan      string  `json:"catatan"`
+}
+
 // Struktur payload pencatatan rekam medis klinis Lansia
 type PeriksaLansiaInput struct {
 	LansiaID     string  `json:"lansia_id" binding:"required"`
@@ -230,4 +238,36 @@ func (lc *LansiaController) CatatPemeriksaan(c *gin.Context) {
 		"message": "Pemeriksaan klinis Lansia berhasil disimpan",
 		"data":    pemeriksaan,
 	})
+}
+
+func (lc *LansiaController) UpdatePemeriksaan(c *gin.Context) {
+	id := c.Param("id")
+	var input UpdatePemeriksaanLansiaInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format input tidak valid"})
+		return
+	}
+
+	var pemeriksaan models.PemeriksaanLansia
+	if err := lc.DB.Where("id = ?", id).First(&pemeriksaan).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data rekam medis tidak ditemukan"})
+		return
+	}
+
+	pemeriksaan.TekananDarah = input.TekananDarah
+	pemeriksaan.GulaDarah = input.GulaDarah
+	pemeriksaan.Kolesterol = input.Kolesterol
+	pemeriksaan.Catatan = input.Catatan
+
+	lc.DB.Save(&pemeriksaan)
+	c.JSON(http.StatusOK, gin.H{"message": "Rekam medis lansia berhasil diperbarui"})
+}
+
+func (lc *LansiaController) DeletePemeriksaan(c *gin.Context) {
+	id := c.Param("id")
+	if err := lc.DB.Where("id = ?", id).Delete(&models.PemeriksaanLansia{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus rekam medis"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Rekam medis lansia berhasil dihapus"})
 }
