@@ -39,6 +39,14 @@ type PeriksaIbuHamilInput struct {
 	Catatan       string  `json:"catatan"`
 }
 
+// --- DTO Update ---
+type UpdatePemeriksaanIbuHamilInput struct {
+	UsiaKehamilan int     `json:"usia_kehamilan"`
+	TekananDarah  string  `json:"tekanan_darah"`
+	BeratBadan    float64 `json:"berat_badan"`
+	Catatan       string  `json:"catatan"`
+}
+
 // Struktur input untuk Update Ibu Hamil (Tanpa NoHP karena terikat akun User)
 type UpdateIbuHamilInput struct {
 	NIK             string `json:"nik" binding:"required"`
@@ -265,4 +273,36 @@ func (ic *IbuHamilController) CatatPemeriksaan(c *gin.Context) {
 		"message": "Pemeriksaan klinis Ibu Hamil berhasil disimpan",
 		"data":    pemeriksaan,
 	})
+}
+
+func (ihc *IbuHamilController) UpdatePemeriksaan(c *gin.Context) {
+	id := c.Param("id")
+	var input UpdatePemeriksaanIbuHamilInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format input tidak valid"})
+		return
+	}
+
+	var pemeriksaan models.PemeriksaanIbuHamil
+	if err := ihc.DB.Where("id = ?", id).First(&pemeriksaan).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data rekam medis tidak ditemukan"})
+		return
+	}
+
+	pemeriksaan.UsiaKehamilan = input.UsiaKehamilan
+	pemeriksaan.TekananDarah = input.TekananDarah
+	pemeriksaan.BeratBadan = input.BeratBadan
+	pemeriksaan.Catatan = input.Catatan
+
+	ihc.DB.Save(&pemeriksaan)
+	c.JSON(http.StatusOK, gin.H{"message": "Rekam medis ibu hamil berhasil diperbarui"})
+}
+
+func (ihc *IbuHamilController) DeletePemeriksaan(c *gin.Context) {
+	id := c.Param("id")
+	if err := ihc.DB.Where("id = ?", id).Delete(&models.PemeriksaanIbuHamil{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus rekam medis"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Rekam medis ibu hamil berhasil dihapus"})
 }
