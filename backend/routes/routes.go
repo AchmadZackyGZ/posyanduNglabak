@@ -68,6 +68,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				balita.DELETE("/:id", balitaController.DeleteBalita)
 				balita.GET("/pemeriksaan", balitaController.GetRiwayatTimbang)
 				balita.GET("/imunisasi", balitaController.GetRiwayatImunisasi)
+				balita.PUT("/pemeriksaan/:id", balitaController.UpdatePemeriksaan)
+				balita.DELETE("/pemeriksaan/:id", balitaController.DeletePemeriksaan)
 			}
 
 			// Endpoint Operasional Ibu Hamil
@@ -80,6 +82,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				ibuHamil.PUT("/:id", ibuHamilController.UpdateIbuHamil)
 				ibuHamil.DELETE("/:id", ibuHamilController.DeleteIbuHamil)
 				ibuHamil.GET("/pemeriksaan", ibuHamilController.GetRiwayatPeriksa)
+				ibuHamil.PUT("/pemeriksaan/:id", ibuHamilController.UpdatePemeriksaan)
+				ibuHamil.DELETE("/pemeriksaan/:id", ibuHamilController.DeletePemeriksaan)
 			}
 
 			// Endpoint Operasional Lansia
@@ -92,6 +96,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				lansia.PUT("/:id", lansiaController.UpdateLansia)
 				lansia.DELETE("/:id", lansiaController.DeleteLansia)
 				lansia.GET("/pemeriksaan", lansiaController.GetRiwayatPeriksa)
+				lansia.PUT("/pemeriksaan/:id", lansiaController.UpdatePemeriksaan)
+				lansia.DELETE("/pemeriksaan/:id", lansiaController.DeletePemeriksaan)
 			}
 
 			// Endpoint Manajemen Jadwal
