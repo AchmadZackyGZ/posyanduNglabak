@@ -60,10 +60,11 @@ type UpdateBalitaInput struct {
 }
 
 // Struktur input pencatatan imunisasi
-type ImunisasiBalitaInput struct {
-	BalitaID       string `json:"balita_id" binding:"required"`
-	JenisImunisasi string `json:"jenis_imunisasi" binding:"required"` // e.g., "BCG", "DPT", "Campak"
-	Catatan        string `json:"catatan"`
+type ImunisasiInput struct {
+	BalitaID         string `json:"balita_id" binding:"required"`
+	JenisImunisasi   string `json:"jenis_imunisasi" binding:"required"`
+	TanggalImunisasi string `json:"tanggal_imunisasi" binding:"required"`
+	Catatan          string `json:"catatan"`
 }
 
 // GetListBalita mengambil seluruh data balita secara menurun (terbaru di atas)
@@ -168,54 +169,84 @@ func (bc *BalitaController) GetRiwayatTimbang(c *gin.Context) {
 	})
 }
 
-// GetRiwayatImunisasi mengambil seluruh riwayat pemberian vaksin
+// 2. Ambil Riwayat Imunisasi (GET)
 func (bc *BalitaController) GetRiwayatImunisasi(c *gin.Context) {
-	var riwayat []models.ImunisasiBalita
+	var imunisasi []models.ImunisasiBalita
 	
-	query := bc.DB.Preload("Pencatat").Order("tanggal_imunisasi desc")
-
-	if balitaID := c.Query("balita_id"); balitaID != "" {
-		query = query.Where("balita_id = ?", balitaID)
-	}
-
-	if err := query.Find(&riwayat).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil riwayat imunisasi balita"})
+	// Gunakan Preload untuk mengambil relasi nama Balita dan Pencatat
+	if err := bc.DB.Preload("Balita").Preload("Pencatat").Order("tanggal_imunisasi DESC").Find(&imunisasi).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil riwayat imunisasi"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Berhasil mengambil riwayat imunisasi",
-		"data":    riwayat,
-	})
+	c.JSON(http.StatusOK, gin.H{"data": imunisasi})
 }
 
-// CatatImunisasi menyimpan data pemberian vaksin/imunisasi
+// 1. Catat Imunisasi (POST)
 func (bc *BalitaController) CatatImunisasi(c *gin.Context) {
-	var input ImunisasiBalitaInput
+	var input ImunisasiInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	petugasID, _ := c.Get("userID")
+	// Ambil ID User yang sedang login dari middleware JWT
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tidak diotorisasi"})
+		return
+	}
+
+	tanggalParsed, _ := time.Parse("2006-01-02", input.TanggalImunisasi)
 
 	imunisasi := models.ImunisasiBalita{
 		BalitaID:         input.BalitaID,
 		JenisImunisasi:   input.JenisImunisasi,
-		TanggalImunisasi: time.Now(),
+		TanggalImunisasi: tanggalParsed,
 		Catatan:          input.Catatan,
-		DicatatOleh:      petugasID.(string),
+		DicatatOleh:      userID.(string), // ID Kader/Bidan
 	}
 
 	if err := bc.DB.Create(&imunisasi).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan data imunisasi"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mencatat imunisasi"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Data imunisasi berhasil dicatat",
-		"data":    imunisasi,
-	})
+	c.JSON(http.StatusCreated, gin.H{"message": "Data imunisasi berhasil dicatat", "data": imunisasi})
+}
+
+// 3. Update Imunisasi (PUT)
+func (bc *BalitaController) UpdateImunisasi(c *gin.Context) {
+	id := c.Param("id")
+	var input ImunisasiInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format input tidak valid"})
+		return
+	}
+
+	var imunisasi models.ImunisasiBalita
+	if err := bc.DB.Where("id = ?", id).First(&imunisasi).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data imunisasi tidak ditemukan"})
+		return
+	}
+
+	tanggalParsed, _ := time.Parse("2006-01-02", input.TanggalImunisasi)
+	imunisasi.JenisImunisasi = input.JenisImunisasi
+	imunisasi.TanggalImunisasi = tanggalParsed
+	imunisasi.Catatan = input.Catatan
+
+	bc.DB.Save(&imunisasi)
+	c.JSON(http.StatusOK, gin.H{"message": "Data imunisasi berhasil diperbarui"})
+}
+
+// 4. Hapus Imunisasi (DELETE)
+func (bc *BalitaController) DeleteImunisasi(c *gin.Context) {
+	id := c.Param("id")
+	if err := bc.DB.Where("id = ?", id).Delete(&models.ImunisasiBalita{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus data imunisasi"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Data imunisasi berhasil dihapus"})
 }
 
 func (bc *BalitaController) UpdateBalita(c *gin.Context){
