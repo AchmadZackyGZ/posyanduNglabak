@@ -11,7 +11,8 @@
 		Baby,
 		HeartPulse,
 		Activity,
-		Save
+		Save,
+		Syringe
 	} from 'lucide-svelte';
 	import Chart from 'chart.js/auto';
 
@@ -24,6 +25,14 @@
 		tinggi_badan: number;
 		lingkar_kepala: number;
 		status_gizi: string;
+		catatan: string;
+		nama_pasien?: string;
+	}
+	interface Imunisasi_balita {
+		id: string;
+		balita_id: string;
+		jenis_imunisasi: string;
+		tanggal_imunisasi: string;
 		catatan: string;
 		nama_pasien?: string;
 	}
@@ -81,6 +90,7 @@
 
 	// --- 3. STATE DATA PEMERIKSAAN (TABLE) ---
 	let pemeriksaanBalita = $state<Pemeriksaan_balita[]>([]);
+	let imunisasiBalita = $state<Imunisasi_balita[]>([]); // State Baru Imunisasi
 	let pemeriksaanIbuHamil = $state<Pemeriksaan_ibu_hamil[]>([]);
 	let pemeriksaanLansia = $state<Pemeriksaan_lansia[]>([]);
 
@@ -127,18 +137,38 @@
 		catatan: ''
 	});
 
+	// --- 7. STATE KHUSUS MODAL IMUNISASI ---
+	let isImunisasiModalOpen = $state(false);
+	let formImunisasi = $state({
+		balita_id: '',
+		jenis_imunisasi: '',
+		tanggal_imunisasi: '',
+		catatan: ''
+	});
+
 	// --- FUNGSI AMBIL SEMUA DATA (FRONTEND JOIN & MASTER LIST) ---
 	async function loadSemuaPemeriksaan() {
 		isLoading = true;
 		try {
-			// 1. Balita
-			const [resBalita, resPeriksaBalita] = await Promise.all([
+			// 1. Balita & Imunisasi
+			const [resBalita, resPeriksaBalita, resImunisasiBalita] = await Promise.all([
 				fetchAPI('/balita'),
-				fetchAPI('/balita/pemeriksaan')
+				fetchAPI('/balita/pemeriksaan'),
+				fetchAPI('/balita/imunisasi') // Tembak API Riwayat Imunisasi
 			]);
 			if (resBalita.data) listMasterBalita = resBalita.data;
+
 			if (resPeriksaBalita.data && resBalita.data) {
 				pemeriksaanBalita = resPeriksaBalita.data.map((p: Pemeriksaan_balita) => {
+					const master = resBalita.data.find(
+						(b: { id: string; nama_balita: string }) => b.id === p.balita_id
+					);
+					return { ...p, nama_pasien: master ? master.nama_balita : 'Tidak Diketahui' };
+				});
+			}
+
+			if (resImunisasiBalita.data && resBalita.data) {
+				imunisasiBalita = resImunisasiBalita.data.map((p: Imunisasi_balita) => {
 					const master = resBalita.data.find(
 						(b: { id: string; nama_balita: string }) => b.id === p.balita_id
 					);
@@ -209,6 +239,18 @@
 		formLansia = { lansia_id: '', tekanan_darah: '', gula_darah: '', kolesterol: '', catatan: '' };
 	}
 
+	function closeImunisasiModal() {
+		isImunisasiModalOpen = false;
+		isEditMode = false;
+		editId = '';
+		formImunisasi = {
+			balita_id: '',
+			jenis_imunisasi: '',
+			tanggal_imunisasi: '',
+			catatan: ''
+		};
+	}
+
 	// --- FUNGSI BUKA MODAL UNTUK EDIT ---
 	function openEditModal(
 		item: Pemeriksaan_balita | Pemeriksaan_ibu_hamil | Pemeriksaan_lansia,
@@ -249,6 +291,19 @@
 		isAddModalOpen = true;
 	}
 
+	function openEditImunisasi(item: Imunisasi_balita) {
+		isEditMode = true;
+		editId = item.id;
+		formImunisasi = {
+			balita_id: item.balita_id,
+			jenis_imunisasi: item.jenis_imunisasi,
+			// Potong ISO Date menjadi YYYY-MM-DD agar masuk ke input type="date"
+			tanggal_imunisasi: item.tanggal_imunisasi.slice(0, 10),
+			catatan: item.catatan || ''
+		};
+		isImunisasiModalOpen = true;
+	}
+
 	// --- FUNGSI HAPUS DATA ---
 	async function handleDelete(id: string, type: string) {
 		if (
@@ -257,35 +312,32 @@
 			)
 		)
 			return;
-
 		try {
 			let endpoint = '';
 			if (type === 'balita') endpoint = `/balita/pemeriksaan/${id}`;
 			else if (type === 'ibu_hamil') endpoint = `/ibu-hamil/pemeriksaan/${id}`;
 			else if (type === 'lansia') endpoint = `/lansia/pemeriksaan/${id}`;
+			else if (type === 'imunisasi') endpoint = `/balita/imunisasi/${id}`;
 
 			await fetchAPI(endpoint, { method: 'DELETE' });
-			alert('Data rekam medis berhasil dihapus!');
+			alert('Data berhasil dihapus!');
 			await loadSemuaPemeriksaan();
 		} catch (error: unknown) {
 			if (error instanceof Error) {
-				console.error('Gagal menghapus rekam medis:', error);
-				alert('Gagal menghapus rekam medis: ' + error.message);
+				alert('Gagal menghapus data: ' + error.message);
 			} else {
-				console.error('Gagal menghapus rekam medis:', error);
-				alert('Gagal menghapus rekam medis: Terjadi kesalahan sistem');
+				alert('Gagal menghapus data: Terjadi kesalahan sistem');
 			}
 		}
 	}
 
-	// --- FUNGSI SUBMIT (TAMBAH & EDIT) REKAM MEDIS ---
+	// --- FUNGSI SUBMIT PEMERIKSAAN ---
 	async function handleAddPemeriksaan(event: Event) {
 		event.preventDefault();
 		isSubmitting = true;
 
 		try {
 			const method = isEditMode ? 'PUT' : 'POST';
-
 			if (activeTab === 'balita') {
 				const endpoint = isEditMode ? `/balita/pemeriksaan/${editId}` : '/balita/timbang';
 				const payload = {
@@ -319,13 +371,34 @@
 				await fetchAPI(endpoint, { method, body: JSON.stringify(payload) });
 			}
 
-			alert(isEditMode ? 'Rekam medis berhasil diperbarui!' : 'Rekam medis berhasil dicatat!');
+			alert(isEditMode ? 'Rekam medis diperbarui!' : 'Rekam medis dicatat!');
 			closeModal();
 			await loadSemuaPemeriksaan();
 		} catch (error: unknown) {
-			console.error('Gagal menyimpan rekam medis:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan sistem';
 			alert('Gagal menyimpan rekam medis: ' + errorMessage);
+		} finally {
+			isSubmitting = false;
+		}
+	}
+
+	// --- FUNGSI SUBMIT IMUNISASI ---
+	async function handleAddImunisasi(event: Event) {
+		event.preventDefault();
+		isSubmitting = true;
+
+		try {
+			const method = isEditMode ? 'PUT' : 'POST';
+			const endpoint = isEditMode ? `/balita/imunisasi/${editId}` : '/balita/imunisasi';
+
+			await fetchAPI(endpoint, { method, body: JSON.stringify(formImunisasi) });
+
+			alert(isEditMode ? 'Data imunisasi diperbarui!' : 'Data imunisasi dicatat!');
+			closeImunisasiModal();
+			await loadSemuaPemeriksaan();
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan sistem';
+			alert('Gagal menyimpan imunisasi: ' + errorMessage);
 		} finally {
 			isSubmitting = false;
 		}
@@ -334,15 +407,11 @@
 	// --- HELPER UI ---
 	function chartAction(node: HTMLCanvasElement, dataList: Pemeriksaan_balita[]) {
 		let chart: Chart;
-
-		// Fungsi internal untuk menghitung dan memperbarui grafik
 		function updateChartData(list: Pemeriksaan_balita[]) {
 			let normal = 0,
 				kurang = 0,
 				lebih = 0,
 				buruk = 0;
-
-			// Hitung manual dari data yang ada di tabel
 			list.forEach((item) => {
 				const status = (item.status_gizi || '').toUpperCase();
 				if (status.includes('NORMAL') || status.includes('BAIK')) normal++;
@@ -350,13 +419,10 @@
 				else if (status.includes('LEBIH')) lebih++;
 				else if (status.includes('BURUK') || status.includes('STUNTING')) buruk++;
 			});
-
 			if (chart) {
-				// Jika grafik sudah ada, cukup update angkanya saja
 				chart.data.datasets[0].data = [normal, kurang, lebih, buruk];
 				chart.update();
 			} else {
-				// Jika grafik belum ada (pertama kali dimuat), buat grafiknya
 				chart = new Chart(node, {
 					type: 'doughnut',
 					data: {
@@ -379,11 +445,8 @@
 			}
 		}
 
-		// Panggil pertama kali
 		updateChartData(dataList);
-
 		return {
-			// Svelte akan otomatis memanggil update() ini setiap kali data pemeriksaanBalita berubah!
 			update(newDataList: Pemeriksaan_balita[]) {
 				updateChartData(newDataList);
 			},
@@ -495,6 +558,7 @@
 				<Calculator size={18} /> Kalkulator Gizi
 			</button>
 		</div>
+
 		<div class="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
 			<div class="overflow-x-auto">
 				<table class="w-full min-w-[1000px] text-left text-sm text-gray-600">
@@ -540,25 +604,27 @@
 									></td
 								>
 								<td class="px-6 py-4 text-gray-500">{item.catatan || '-'}</td>
-								<td class="px-6 py-4"
-									><div class="flex justify-center gap-2">
+								<td class="px-6 py-4">
+									<div class="flex justify-center gap-2">
 										<button
 											onclick={() => openEditModal(item, 'balita')}
 											class="cursor-pointer rounded-lg p-1.5 text-blue-500 transition hover:bg-blue-50"
 											title="Edit Data"><Edit2 size={16} /></button
-										><button
+										>
+										<button
 											onclick={() => handleDelete(item.id, 'balita')}
 											class="cursor-pointer rounded-lg p-1.5 text-red-500 transition hover:bg-red-50"
 											title="Hapus Data"><Trash2 size={16} /></button
 										>
-									</div></td
-								>
+									</div>
+								</td>
 							</tr>
 						{/each}
 					</tbody>
 				</table>
 			</div>
 		</div>
+
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 			<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
 				<h2 class="mb-4 text-base font-bold text-gray-800">Sebaran Gizi Balita</h2>
@@ -579,6 +645,90 @@
 					class="cursor-pointer rounded-xl bg-[#117064] px-8 py-3.5 text-sm font-bold text-white shadow-lg transition hover:bg-[#0c4e43] active:scale-95"
 					>Buka Kalkulator</button
 				>
+			</div>
+		</div>
+
+		<div class="mt-10 flex items-center justify-between border-b border-gray-100 pb-4">
+			<div>
+				<h2 class="flex items-center gap-2 text-xl font-black text-gray-800">
+					<Syringe size={22} class="text-[#117064]" /> Riwayat Imunisasi Balita
+				</h2>
+				<p class="mt-1 text-sm text-gray-500">
+					Pantau vaksinasi dan jadwal imunisasi dasar balita.
+				</p>
+			</div>
+			<button
+				onclick={() => {
+					closeImunisasiModal();
+					isImunisasiModalOpen = true;
+				}}
+				class="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-[#117064] bg-white px-4 py-2 text-sm font-bold text-[#117064] transition hover:bg-teal-50 active:scale-95"
+			>
+				<Plus size={16} strokeWidth={3} /> Tambah Imunisasi
+			</button>
+		</div>
+
+		<div class="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+			<div class="overflow-x-auto">
+				<table class="w-full min-w-[800px] text-left text-sm text-gray-600">
+					<thead
+						class="border-b border-gray-100 bg-gray-50/80 text-xs font-bold tracking-wider text-gray-400 uppercase"
+					>
+						<tr
+							><th class="w-16 px-6 py-5 text-center">NO</th><th class="px-6 py-5">NAMA BALITA</th
+							><th class="px-6 py-5 text-center">TANGGAL SUNTIK</th><th
+								class="px-6 py-5 text-center">JENIS IMUNISASI</th
+							><th class="px-6 py-5">CATATAN EFEK SAMPING</th><th class="px-6 py-5 text-center"
+								>AKSI</th
+							></tr
+						>
+					</thead>
+					<tbody class="divide-y divide-gray-50">
+						{#if isLoading}
+							<tr
+								><td colspan="6" class="px-6 py-10 text-center text-gray-400"
+									>Memuat data imunisasi...</td
+								></tr
+							>
+						{:else if imunisasiBalita.length === 0}
+							<tr
+								><td colspan="6" class="px-6 py-10 text-center text-gray-400"
+									>Belum ada riwayat imunisasi yang dicatat.</td
+								></tr
+							>
+						{/if}
+						{#each imunisasiBalita as item, index (item.id)}
+							<tr class="transition-colors hover:bg-gray-50/50">
+								<td class="px-6 py-4 text-center font-medium text-gray-400">{index + 1}</td>
+								<td class="px-6 py-4 font-bold text-gray-800">{item.nama_pasien}</td>
+								<td class="px-6 py-4 text-center font-medium text-gray-700"
+									>{formatDate(item.tanggal_imunisasi)}</td
+								>
+								<td class="px-6 py-4 text-center"
+									><span
+										class="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700 uppercase shadow-sm"
+										>{item.jenis_imunisasi}</span
+									></td
+								>
+								<td class="px-6 py-4 text-gray-500">{item.catatan || '-'}</td>
+								<td class="px-6 py-4">
+									<div class="flex justify-center gap-2">
+										<button
+											onclick={() => openEditImunisasi(item)}
+											class="cursor-pointer rounded-lg p-1.5 text-blue-500 transition hover:bg-blue-50"
+											title="Edit Imunisasi"><Edit2 size={16} /></button
+										>
+										<button
+											onclick={() => handleDelete(item.id, 'imunisasi')}
+											class="cursor-pointer rounded-lg p-1.5 text-red-500 transition hover:bg-red-50"
+											title="Hapus Imunisasi"><Trash2 size={16} /></button
+										>
+									</div>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
 			</div>
 		</div>
 	{/if}
@@ -624,19 +774,20 @@
 								<td class="px-6 py-4 text-center font-bold text-red-500">{item.tekanan_darah}</td>
 								<td class="px-6 py-4 text-center font-bold text-gray-700">{item.berat_badan}</td>
 								<td class="px-6 py-4 text-gray-500">{item.catatan || '-'}</td>
-								<td class="px-6 py-4"
-									><div class="flex justify-center gap-2">
+								<td class="px-6 py-4">
+									<div class="flex justify-center gap-2">
 										<button
 											onclick={() => openEditModal(item, 'ibu_hamil')}
 											class="cursor-pointer rounded-lg p-1.5 text-blue-500 transition hover:bg-blue-50"
 											title="Edit Data"><Edit2 size={16} /></button
-										><button
+										>
+										<button
 											onclick={() => handleDelete(item.id, 'ibu_hamil')}
 											class="cursor-pointer rounded-lg p-1.5 text-red-500 transition hover:bg-red-50"
 											title="Hapus Data"><Trash2 size={16} /></button
 										>
-									</div></td
-								>
+									</div>
+								</td>
 							</tr>
 						{/each}
 					</tbody>
@@ -688,19 +839,20 @@
 									>{item.kolesterol ? `${item.kolesterol} mg/dL` : '-'}</td
 								>
 								<td class="px-6 py-4 text-gray-500">{item.catatan || '-'}</td>
-								<td class="px-6 py-4"
-									><div class="flex justify-center gap-2">
+								<td class="px-6 py-4">
+									<div class="flex justify-center gap-2">
 										<button
 											onclick={() => openEditModal(item, 'lansia')}
 											class="cursor-pointer rounded-lg p-1.5 text-blue-500 transition hover:bg-blue-50"
 											title="Edit Data"><Edit2 size={16} /></button
-										><button
+										>
+										<button
 											onclick={() => handleDelete(item.id, 'lansia')}
 											class="cursor-pointer rounded-lg p-1.5 text-red-500 transition hover:bg-red-50"
 											title="Hapus Data"><Trash2 size={16} /></button
 										>
-									</div></td
-								>
+									</div>
+								</td>
 							</tr>
 						{/each}
 					</tbody>
@@ -816,9 +968,9 @@
 							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
 						>
 							<option value="" disabled selected>-- Pilih Balita --</option>
-							{#each listMasterBalita as b (b.id)}
-								<option value={b.id}>{b.nama_balita} (NIK: {b.nik})</option>
-							{/each}
+							{#each listMasterBalita as b (b.id)}<option value={b.id}
+									>{b.nama_balita} (NIK: {b.nik})</option
+								>{/each}
 						</select>
 					{:else if activeTab === 'ibu_hamil'}
 						<select
@@ -828,9 +980,9 @@
 							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
 						>
 							<option value="" disabled selected>-- Pilih Ibu Hamil --</option>
-							{#each listMasterIbuHamil as i (i.id)}
-								<option value={i.id}>{i.nama_ibu} (NIK: {i.nik})</option>
-							{/each}
+							{#each listMasterIbuHamil as i (i.id)}<option value={i.id}
+									>{i.nama_ibu} (NIK: {i.nik})</option
+								>{/each}
 						</select>
 					{:else}
 						<select
@@ -840,9 +992,9 @@
 							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
 						>
 							<option value="" disabled selected>-- Pilih Lansia --</option>
-							{#each listMasterLansia as l (l.id)}
-								<option value={l.id}>{l.nama_lengkap} (NIK: {l.nik})</option>
-							{/each}
+							{#each listMasterLansia as l (l.id)}<option value={l.id}
+									>{l.nama_lengkap} (NIK: {l.nik})</option
+								>{/each}
 						</select>
 					{/if}
 				</div>
@@ -994,6 +1146,105 @@
 							: isEditMode
 								? 'Update Rekam Medis'
 								: 'Simpan Rekam Medis'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
+{#if isImunisasiModalOpen}
+	<div
+		class="fixed top-0 left-0 z-[100] flex h-screen w-screen items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+	>
+		<div class="absolute inset-0 cursor-pointer" onclick={closeImunisasiModal}></div>
+		<div
+			class="relative z-10 w-full max-w-[450px] overflow-hidden rounded-[24px] bg-white shadow-2xl"
+		>
+			<div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-6 py-4">
+				<div class="flex items-center gap-3 text-gray-800">
+					<Syringe size={20} class="text-indigo-600" />
+					<h2 class="text-base font-black">
+						{#if isEditMode}
+							Edit Imunisasi
+						{:else}
+							Catat Imunisasi Baru
+						{/if}
+					</h2>
+				</div>
+				<button
+					onclick={closeImunisasiModal}
+					class="cursor-pointer text-gray-400 transition hover:text-red-500"
+					title="Tutup"
+				>
+					<X size={20} strokeWidth={3} />
+				</button>
+			</div>
+
+			<form onsubmit={handleAddImunisasi} class="space-y-4 p-6">
+				<div>
+					<label class="mb-1.5 block text-xs font-bold text-gray-700">Pilih Balita</label>
+					<select
+						required
+						disabled={isEditMode}
+						bind:value={formImunisasi.balita_id}
+						class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-indigo-600 focus:bg-white focus:ring-1 focus:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
+					>
+						<option value="" disabled selected>-- Pilih Balita --</option>
+						{#each listMasterBalita as b (b.id)}<option value={b.id}
+								>{b.nama_balita} (NIK: {b.nik})</option
+							>{/each}
+					</select>
+				</div>
+
+				<div>
+					<label class="mb-1.5 block text-xs font-bold text-gray-700">Tanggal Imunisasi</label>
+					<input
+						type="date"
+						required
+						bind:value={formImunisasi.tanggal_imunisasi}
+						class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+					/>
+				</div>
+
+				<div>
+					<label class="mb-1.5 block text-xs font-bold text-gray-700"
+						>Jenis Vaksin / Imunisasi</label
+					>
+					<input
+						type="text"
+						required
+						bind:value={formImunisasi.jenis_imunisasi}
+						placeholder="Contoh: BCG, DPT 1, Polio, Campak..."
+						class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+					/>
+				</div>
+
+				<div>
+					<label class="mb-1.5 block text-xs font-bold text-gray-700"
+						>Catatan Khusus (Opsional)</label
+					>
+					<textarea
+						bind:value={formImunisasi.catatan}
+						placeholder="Misal: Demam ringan setelah disuntik..."
+						class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+						rows="2"
+					></textarea>
+				</div>
+
+				<div class="mt-6 flex justify-end gap-3 border-t border-gray-50 pt-4">
+					<button
+						type="button"
+						onclick={closeImunisasiModal}
+						class="cursor-pointer rounded-xl px-5 py-2.5 text-sm font-bold text-gray-500 transition hover:bg-gray-100"
+						>Batal</button
+					>
+					<button
+						type="submit"
+						disabled={isSubmitting}
+						class="cursor-pointer rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:opacity-70"
+					>
+						{isSubmitting ? 'Menyimpan...' : isEditMode ? 'Update Imunisasi' : 'Simpan Imunisasi'}
 					</button>
 				</div>
 			</form>
