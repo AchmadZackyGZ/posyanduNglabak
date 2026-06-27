@@ -70,6 +70,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				balita.GET("/imunisasi", balitaController.GetRiwayatImunisasi)
 				balita.PUT("/pemeriksaan/:id", balitaController.UpdatePemeriksaan)
 				balita.DELETE("/pemeriksaan/:id", balitaController.DeletePemeriksaan)
+				balita.PUT("/imunisasi/:id", balitaController.UpdateImunisasi)
+				balita.DELETE("/imunisasi/:id", balitaController.DeleteImunisasi)
 			}
 
 			// Endpoint Operasional Ibu Hamil
