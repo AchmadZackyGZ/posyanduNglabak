@@ -95,9 +95,13 @@
 	let tinggiInput = $state<number | null>(null);
 	let hasilStatusGizi = $state('');
 
-	// --- 6. STATE "SUPER MODAL" TAMBAH REKAM MEDIS ---
+	// --- 6. STATE "SUPER MODAL" TAMBAH & EDIT REKAM MEDIS ---
 	let isAddModalOpen = $state(false);
 	let isSubmitting = $state(false);
+
+	// State untuk Mode Edit
+	let isEditMode = $state(false);
+	let editId = $state('');
 
 	// Form spesifik per entitas
 	let formBalita = $state({
@@ -132,7 +136,7 @@
 				fetchAPI('/balita'),
 				fetchAPI('/balita/pemeriksaan')
 			]);
-			if (resBalita.data) listMasterBalita = resBalita.data; // Simpan untuk dropdown
+			if (resBalita.data) listMasterBalita = resBalita.data;
 			if (resPeriksaBalita.data && resBalita.data) {
 				pemeriksaanBalita = resPeriksaBalita.data.map((p: Pemeriksaan_balita) => {
 					const master = resBalita.data.find(
@@ -182,13 +186,108 @@
 		loadSemuaPemeriksaan();
 	});
 
-	// --- FUNGSI SUBMIT REKAM MEDIS ---
+	// --- FUNGSI RESET & TUTUP MODAL ---
+	function closeModal() {
+		isAddModalOpen = false;
+		isEditMode = false;
+		editId = '';
+		formBalita = {
+			balita_id: '',
+			berat_badan: '',
+			tinggi_badan: '',
+			lingkar_kepala: '',
+			status_gizi: 'NORMAL',
+			catatan: ''
+		};
+		formIbuHamil = {
+			ibu_hamil_id: '',
+			usia_kehamilan: '',
+			tekanan_darah: '',
+			berat_badan: '',
+			catatan: ''
+		};
+		formLansia = { lansia_id: '', tekanan_darah: '', gula_darah: '', kolesterol: '', catatan: '' };
+	}
+
+	// --- FUNGSI BUKA MODAL UNTUK EDIT ---
+	function openEditModal(
+		item: Pemeriksaan_balita | Pemeriksaan_ibu_hamil | Pemeriksaan_lansia,
+		type: string
+	) {
+		isEditMode = true;
+		editId = item.id;
+
+		if (type === 'balita') {
+			const b = item as Pemeriksaan_balita;
+			formBalita = {
+				balita_id: b.balita_id,
+				berat_badan: b.berat_badan.toString(),
+				tinggi_badan: b.tinggi_badan.toString(),
+				lingkar_kepala: b.lingkar_kepala ? b.lingkar_kepala.toString() : '',
+				status_gizi: b.status_gizi,
+				catatan: b.catatan || ''
+			};
+		} else if (type === 'ibu_hamil') {
+			const ih = item as Pemeriksaan_ibu_hamil;
+			formIbuHamil = {
+				ibu_hamil_id: ih.ibu_hamil_id,
+				usia_kehamilan: ih.usia_kehamilan.toString(),
+				tekanan_darah: ih.tekanan_darah,
+				berat_badan: ih.berat_badan.toString(),
+				catatan: ih.catatan || ''
+			};
+		} else if (type === 'lansia') {
+			const l = item as Pemeriksaan_lansia;
+			formLansia = {
+				lansia_id: l.lansia_id,
+				tekanan_darah: l.tekanan_darah,
+				gula_darah: l.gula_darah ? l.gula_darah.toString() : '',
+				kolesterol: l.kolesterol ? l.kolesterol.toString() : '',
+				catatan: l.catatan || ''
+			};
+		}
+		isAddModalOpen = true;
+	}
+
+	// --- FUNGSI HAPUS DATA ---
+	async function handleDelete(id: string, type: string) {
+		if (
+			!confirm(
+				'Apakah Anda yakin ingin menghapus rekam medis ini? Tindakan ini tidak dapat dibatalkan.'
+			)
+		)
+			return;
+
+		try {
+			let endpoint = '';
+			if (type === 'balita') endpoint = `/balita/pemeriksaan/${id}`;
+			else if (type === 'ibu_hamil') endpoint = `/ibu-hamil/pemeriksaan/${id}`;
+			else if (type === 'lansia') endpoint = `/lansia/pemeriksaan/${id}`;
+
+			await fetchAPI(endpoint, { method: 'DELETE' });
+			alert('Data rekam medis berhasil dihapus!');
+			await loadSemuaPemeriksaan();
+		} catch (error: unknown) {
+			if (error instanceof Error) {
+				console.error('Gagal menghapus rekam medis:', error);
+				alert('Gagal menghapus rekam medis: ' + error.message);
+			} else {
+				console.error('Gagal menghapus rekam medis:', error);
+				alert('Gagal menghapus rekam medis: Terjadi kesalahan sistem');
+			}
+		}
+	}
+
+	// --- FUNGSI SUBMIT (TAMBAH & EDIT) REKAM MEDIS ---
 	async function handleAddPemeriksaan(event: Event) {
 		event.preventDefault();
 		isSubmitting = true;
 
 		try {
+			const method = isEditMode ? 'PUT' : 'POST';
+
 			if (activeTab === 'balita') {
+				const endpoint = isEditMode ? `/balita/pemeriksaan/${editId}` : '/balita/timbang';
 				const payload = {
 					balita_id: formBalita.balita_id,
 					berat_badan: parseFloat(formBalita.berat_badan),
@@ -197,8 +296,9 @@
 					status_gizi: formBalita.status_gizi,
 					catatan: formBalita.catatan
 				};
-				await fetchAPI('/balita/timbang', { method: 'POST', body: JSON.stringify(payload) });
+				await fetchAPI(endpoint, { method, body: JSON.stringify(payload) });
 			} else if (activeTab === 'ibu_hamil') {
+				const endpoint = isEditMode ? `/ibu-hamil/pemeriksaan/${editId}` : '/ibu-hamil/periksa';
 				const payload = {
 					ibu_hamil_id: formIbuHamil.ibu_hamil_id,
 					usia_kehamilan: parseInt(formIbuHamil.usia_kehamilan),
@@ -206,8 +306,9 @@
 					berat_badan: parseFloat(formIbuHamil.berat_badan),
 					catatan: formIbuHamil.catatan
 				};
-				await fetchAPI('/ibu-hamil/periksa', { method: 'POST', body: JSON.stringify(payload) });
+				await fetchAPI(endpoint, { method, body: JSON.stringify(payload) });
 			} else if (activeTab === 'lansia') {
+				const endpoint = isEditMode ? `/lansia/pemeriksaan/${editId}` : '/lansia/periksa';
 				const payload = {
 					lansia_id: formLansia.lansia_id,
 					tekanan_darah: formLansia.tekanan_darah,
@@ -215,41 +316,14 @@
 					kolesterol: formLansia.kolesterol ? parseFloat(formLansia.kolesterol) : 0,
 					catatan: formLansia.catatan
 				};
-				await fetchAPI('/lansia/periksa', { method: 'POST', body: JSON.stringify(payload) });
+				await fetchAPI(endpoint, { method, body: JSON.stringify(payload) });
 			}
 
-			alert('Rekam medis berhasil dicatat!');
-			isAddModalOpen = false;
-
-			// Reset Form
-			formBalita = {
-				balita_id: '',
-				berat_badan: '',
-				tinggi_badan: '',
-				lingkar_kepala: '',
-				status_gizi: 'NORMAL',
-				catatan: ''
-			};
-			formIbuHamil = {
-				ibu_hamil_id: '',
-				usia_kehamilan: '',
-				tekanan_darah: '',
-				berat_badan: '',
-				catatan: ''
-			};
-			formLansia = {
-				lansia_id: '',
-				tekanan_darah: '',
-				gula_darah: '',
-				kolesterol: '',
-				catatan: ''
-			};
-
-			// Refresh Tabel
+			alert(isEditMode ? 'Rekam medis berhasil diperbarui!' : 'Rekam medis berhasil dicatat!');
+			closeModal();
 			await loadSemuaPemeriksaan();
 		} catch (error: unknown) {
 			console.error('Gagal menyimpan rekam medis:', error);
-			// Pengecekan tipe error secara aman
 			const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan sistem';
 			alert('Gagal menyimpan rekam medis: ' + errorMessage);
 		} finally {
@@ -258,29 +332,63 @@
 	}
 
 	// --- HELPER UI ---
-	function chartAction(node: HTMLCanvasElement) {
-		const chart = new Chart(node, {
-			type: 'doughnut',
-			data: {
-				labels: ['Normal', 'Gizi Kurang', 'Gizi Lebih', 'Gizi Buruk'],
-				datasets: [
-					{
-						data: [62, 15, 8, 2],
-						backgroundColor: ['#22c55e', '#f59e0b', '#3b82f6', '#ef4444'],
-						borderWidth: 0
+	function chartAction(node: HTMLCanvasElement, dataList: Pemeriksaan_balita[]) {
+		let chart: Chart;
+
+		// Fungsi internal untuk menghitung dan memperbarui grafik
+		function updateChartData(list: Pemeriksaan_balita[]) {
+			let normal = 0,
+				kurang = 0,
+				lebih = 0,
+				buruk = 0;
+
+			// Hitung manual dari data yang ada di tabel
+			list.forEach((item) => {
+				const status = (item.status_gizi || '').toUpperCase();
+				if (status.includes('NORMAL') || status.includes('BAIK')) normal++;
+				else if (status.includes('KURANG')) kurang++;
+				else if (status.includes('LEBIH')) lebih++;
+				else if (status.includes('BURUK') || status.includes('STUNTING')) buruk++;
+			});
+
+			if (chart) {
+				// Jika grafik sudah ada, cukup update angkanya saja
+				chart.data.datasets[0].data = [normal, kurang, lebih, buruk];
+				chart.update();
+			} else {
+				// Jika grafik belum ada (pertama kali dimuat), buat grafiknya
+				chart = new Chart(node, {
+					type: 'doughnut',
+					data: {
+						labels: ['Normal', 'Gizi Kurang', 'Gizi Lebih', 'Gizi Buruk'],
+						datasets: [
+							{
+								data: [normal, kurang, lebih, buruk],
+								backgroundColor: ['#22c55e', '#f59e0b', '#3b82f6', '#ef4444'],
+								borderWidth: 0
+							}
+						]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						cutout: '70%',
+						plugins: { legend: { position: 'right' } }
 					}
-				]
-			},
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				cutout: '70%',
-				plugins: { legend: { position: 'right' } }
+				});
 			}
-		});
+		}
+
+		// Panggil pertama kali
+		updateChartData(dataList);
+
 		return {
+			// Svelte akan otomatis memanggil update() ini setiap kali data pemeriksaanBalita berubah!
+			update(newDataList: Pemeriksaan_balita[]) {
+				updateChartData(newDataList);
+			},
 			destroy() {
-				chart.destroy();
+				if (chart) chart.destroy();
 			}
 		};
 	}
@@ -337,7 +445,10 @@
 		</div>
 		<div class="mt-4 flex gap-3 md:mt-0">
 			<button
-				onclick={() => (isAddModalOpen = true)}
+				onclick={() => {
+					closeModal();
+					isAddModalOpen = true;
+				}}
 				class="flex cursor-pointer items-center gap-2 rounded-xl bg-[#117064] px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#0c4e43]"
 			>
 				<Plus size={18} strokeWidth={3} /> Tambah Rekam Medis
@@ -432,11 +543,13 @@
 								<td class="px-6 py-4"
 									><div class="flex justify-center gap-2">
 										<button
+											onclick={() => openEditModal(item, 'balita')}
 											class="cursor-pointer rounded-lg p-1.5 text-blue-500 transition hover:bg-blue-50"
-											><Edit2 size={16} /></button
+											title="Edit Data"><Edit2 size={16} /></button
 										><button
+											onclick={() => handleDelete(item.id, 'balita')}
 											class="cursor-pointer rounded-lg p-1.5 text-red-500 transition hover:bg-red-50"
-											><Trash2 size={16} /></button
+											title="Hapus Data"><Trash2 size={16} /></button
 										>
 									</div></td
 								>
@@ -450,7 +563,7 @@
 			<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
 				<h2 class="mb-4 text-base font-bold text-gray-800">Sebaran Gizi Balita</h2>
 				<div class="relative flex h-64 w-full items-center justify-center">
-					<canvas use:chartAction></canvas>
+					<canvas use:chartAction={pemeriksaanBalita}></canvas>
 				</div>
 			</div>
 			<div
@@ -514,11 +627,13 @@
 								<td class="px-6 py-4"
 									><div class="flex justify-center gap-2">
 										<button
+											onclick={() => openEditModal(item, 'ibu_hamil')}
 											class="cursor-pointer rounded-lg p-1.5 text-blue-500 transition hover:bg-blue-50"
-											><Edit2 size={16} /></button
+											title="Edit Data"><Edit2 size={16} /></button
 										><button
+											onclick={() => handleDelete(item.id, 'ibu_hamil')}
 											class="cursor-pointer rounded-lg p-1.5 text-red-500 transition hover:bg-red-50"
-											><Trash2 size={16} /></button
+											title="Hapus Data"><Trash2 size={16} /></button
 										>
 									</div></td
 								>
@@ -576,11 +691,13 @@
 								<td class="px-6 py-4"
 									><div class="flex justify-center gap-2">
 										<button
+											onclick={() => openEditModal(item, 'lansia')}
 											class="cursor-pointer rounded-lg p-1.5 text-blue-500 transition hover:bg-blue-50"
-											><Edit2 size={16} /></button
+											title="Edit Data"><Edit2 size={16} /></button
 										><button
+											onclick={() => handleDelete(item.id, 'lansia')}
 											class="cursor-pointer rounded-lg p-1.5 text-red-500 transition hover:bg-red-50"
-											><Trash2 size={16} /></button
+											title="Hapus Data"><Trash2 size={16} /></button
 										>
 									</div></td
 								>
@@ -660,7 +777,7 @@
 	<div
 		class="fixed top-0 left-0 z-[100] flex h-screen w-screen items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
 	>
-		<div class="absolute inset-0 cursor-pointer" onclick={() => (isAddModalOpen = false)}></div>
+		<div class="absolute inset-0 cursor-pointer" onclick={closeModal}></div>
 		<div
 			class="relative z-10 w-full max-w-[500px] overflow-hidden rounded-[24px] bg-white shadow-2xl"
 		>
@@ -668,7 +785,9 @@
 				<div class="flex items-center gap-3 text-gray-800">
 					<Save size={20} class="text-[#117064]" />
 					<h2 class="text-base font-black">
-						{#if activeTab === 'balita'}
+						{#if isEditMode}
+							Edit Rekam Medis
+						{:else if activeTab === 'balita'}
 							Timbang Balita
 						{:else if activeTab === 'ibu_hamil'}
 							Kontrol Ibu Hamil
@@ -678,7 +797,7 @@
 					</h2>
 				</div>
 				<button
-					onclick={() => (isAddModalOpen = false)}
+					onclick={closeModal}
 					class="cursor-pointer text-gray-400 transition hover:text-red-500"
 					title="Tutup"
 				>
@@ -692,8 +811,9 @@
 					{#if activeTab === 'balita'}
 						<select
 							required
+							disabled={isEditMode}
 							bind:value={formBalita.balita_id}
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064]"
+							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
 						>
 							<option value="" disabled selected>-- Pilih Balita --</option>
 							{#each listMasterBalita as b (b.id)}
@@ -703,8 +823,9 @@
 					{:else if activeTab === 'ibu_hamil'}
 						<select
 							required
+							disabled={isEditMode}
 							bind:value={formIbuHamil.ibu_hamil_id}
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064]"
+							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
 						>
 							<option value="" disabled selected>-- Pilih Ibu Hamil --</option>
 							{#each listMasterIbuHamil as i (i.id)}
@@ -714,8 +835,9 @@
 					{:else}
 						<select
 							required
+							disabled={isEditMode}
 							bind:value={formLansia.lansia_id}
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064]"
+							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
 						>
 							<option value="" disabled selected>-- Pilih Lansia --</option>
 							{#each listMasterLansia as l (l.id)}
@@ -761,11 +883,10 @@
 								bind:value={formBalita.status_gizi}
 								class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064]"
 							>
-								<option value="NORMAL">Normal</option><option value="GIZI KURANG"
-									>Gizi Kurang</option
-								><option value="GIZI BURUK">Gizi Buruk</option><option value="GIZI LEBIH"
-									>Gizi Lebih</option
-								>
+								<option value="NORMAL">Normal</option>
+								<option value="GIZI KURANG">Gizi Kurang</option>
+								<option value="GIZI BURUK">Gizi Buruk</option>
+								<option value="GIZI LEBIH">Gizi Lebih</option>
 							</select>
 						</div>
 						<div class="col-span-2">
@@ -859,7 +980,7 @@
 				<div class="mt-6 flex justify-end gap-3 border-t border-gray-50 pt-4">
 					<button
 						type="button"
-						onclick={() => (isAddModalOpen = false)}
+						onclick={closeModal}
 						class="cursor-pointer rounded-xl px-5 py-2.5 text-sm font-bold text-gray-500 transition hover:bg-gray-100"
 						>Batal</button
 					>
@@ -868,7 +989,11 @@
 						disabled={isSubmitting}
 						class="cursor-pointer rounded-xl bg-[#117064] px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#0c4e43] disabled:opacity-70"
 					>
-						{isSubmitting ? 'Menyimpan...' : 'Simpan Rekam Medis'}
+						{isSubmitting
+							? 'Menyimpan...'
+							: isEditMode
+								? 'Update Rekam Medis'
+								: 'Simpan Rekam Medis'}
 					</button>
 				</div>
 			</form>
