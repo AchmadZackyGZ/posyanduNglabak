@@ -22,6 +22,7 @@ func NewBalitaController(db *gorm.DB) *BalitaController {
 // Struktur input pencatatan timbang (FR-03)
 type TimbangBalitaInput struct {
 	BalitaID      string  `json:"balita_id" binding:"required"`
+	TanggalPeriksa string  `json:"tanggal_periksa" binding:"required"`
 	BeratBadan    float64 `json:"berat_badan" binding:"required"`
 	TinggiBadan   float64 `json:"tinggi_badan" binding:"required"`
 	LingkarKepala float64 `json:"lingkar_kepala"`
@@ -42,6 +43,7 @@ type RegisterBalitaInput struct {
 
 // --- DTO Update ---
 type UpdatePemeriksaanBalitaInput struct {
+	TanggalPeriksa string  `json:"tanggal_periksa"`
 	BeratBadan    float64 `json:"berat_badan"`
 	TinggiBadan   float64 `json:"tinggi_badan"`
 	LingkarKepala float64 `json:"lingkar_kepala"`
@@ -323,12 +325,19 @@ func (bc *BalitaController) CatatPemeriksaan(c *gin.Context) {
 		return
 	}
 
+	//parsing string tanggal YYYY-MM-DD dari frontend menjadi tipe Time Golang
+	tanggalParsed, err := time.Parse("2006-01-02", input.TanggalPeriksa)
+	if err != nil {
+		// Fallback aman: jika gagal parsing, gunakan hari ini
+		tanggalParsed = time.Now()
+	}
+
 	// Ambil ID petugas (Kader/Bidan) yang sedang login dari Context Middleware
 	kaderID, _ := c.Get("userID")
 
 	pemeriksaan := models.PemeriksaanBalita{
 		BalitaID:       input.BalitaID,
-		TanggalPeriksa: time.Now(),
+		TanggalPeriksa: tanggalParsed,
 		BeratBadan:     input.BeratBadan,
 		TinggiBadan:    input.TinggiBadan,
 		LingkarKepala:  input.LingkarKepala,
@@ -360,6 +369,13 @@ func (bc *BalitaController) UpdatePemeriksaan(c *gin.Context) {
 	if err := bc.DB.Where("id = ?", id).First(&pemeriksaan).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Data rekam medis tidak ditemukan"})
 		return
+	}
+
+	// Parsing string tanggal
+	if input.TanggalPeriksa != "" {
+		if tanggalParsed, err := time.Parse("2006-01-02", input.TanggalPeriksa); err == nil {
+			pemeriksaan.TanggalPeriksa = tanggalParsed // <--- UPDATE TANGGALNYA
+		}
 	}
 
 	pemeriksaan.BeratBadan = input.BeratBadan

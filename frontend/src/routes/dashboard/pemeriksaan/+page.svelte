@@ -12,7 +12,8 @@
 		HeartPulse,
 		Activity,
 		Save,
-		Syringe
+		Syringe,
+		Clock
 	} from 'lucide-svelte';
 	import Chart from 'chart.js/auto';
 
@@ -116,6 +117,7 @@
 	// Form spesifik per entitas
 	let formBalita = $state({
 		balita_id: '',
+		tanggal_periksa: '',
 		berat_badan: '',
 		tinggi_badan: '',
 		lingkar_kepala: '',
@@ -124,6 +126,7 @@
 	});
 	let formIbuHamil = $state({
 		ibu_hamil_id: '',
+		tanggal_periksa: '',
 		usia_kehamilan: '',
 		tekanan_darah: '',
 		berat_badan: '',
@@ -131,6 +134,7 @@
 	});
 	let formLansia = $state({
 		lansia_id: '',
+		tanggal_periksa: '',
 		tekanan_darah: '',
 		gula_darah: '',
 		kolesterol: '',
@@ -224,6 +228,7 @@
 		formBalita = {
 			balita_id: '',
 			berat_badan: '',
+			tanggal_periksa: '',
 			tinggi_badan: '',
 			lingkar_kepala: '',
 			status_gizi: 'NORMAL',
@@ -232,11 +237,19 @@
 		formIbuHamil = {
 			ibu_hamil_id: '',
 			usia_kehamilan: '',
+			tanggal_periksa: '',
 			tekanan_darah: '',
 			berat_badan: '',
 			catatan: ''
 		};
-		formLansia = { lansia_id: '', tekanan_darah: '', gula_darah: '', kolesterol: '', catatan: '' };
+		formLansia = {
+			lansia_id: '',
+			tanggal_periksa: '',
+			tekanan_darah: '',
+			gula_darah: '',
+			kolesterol: '',
+			catatan: ''
+		};
 	}
 
 	function closeImunisasiModal() {
@@ -258,11 +271,13 @@
 	) {
 		isEditMode = true;
 		editId = item.id;
+		const formatDateInput = (iso: string) => (iso ? iso.slice(0, 10) : ''); // Pemotong format ISO
 
 		if (type === 'balita') {
 			const b = item as Pemeriksaan_balita;
 			formBalita = {
 				balita_id: b.balita_id,
+				tanggal_periksa: formatDateInput(b.tanggal_periksa),
 				berat_badan: b.berat_badan.toString(),
 				tinggi_badan: b.tinggi_badan.toString(),
 				lingkar_kepala: b.lingkar_kepala ? b.lingkar_kepala.toString() : '',
@@ -273,6 +288,7 @@
 			const ih = item as Pemeriksaan_ibu_hamil;
 			formIbuHamil = {
 				ibu_hamil_id: ih.ibu_hamil_id,
+				tanggal_periksa: formatDateInput(ih.tanggal_periksa),
 				usia_kehamilan: ih.usia_kehamilan.toString(),
 				tekanan_darah: ih.tekanan_darah,
 				berat_badan: ih.berat_badan.toString(),
@@ -282,6 +298,7 @@
 			const l = item as Pemeriksaan_lansia;
 			formLansia = {
 				lansia_id: l.lansia_id,
+				tanggal_periksa: formatDateInput(l.tanggal_periksa),
 				tekanan_darah: l.tekanan_darah,
 				gula_darah: l.gula_darah ? l.gula_darah.toString() : '',
 				kolesterol: l.kolesterol ? l.kolesterol.toString() : '',
@@ -289,6 +306,14 @@
 			};
 		}
 		isAddModalOpen = true;
+	}
+
+	// --- FUNGSI AUTO SET HARI INI ---
+	function setTodayDate() {
+		const today = new Date().toISOString().split('T')[0];
+		if (activeTab === 'balita') formBalita.tanggal_periksa = today;
+		else if (activeTab === 'ibu_hamil') formIbuHamil.tanggal_periksa = today;
+		else if (activeTab === 'lansia') formLansia.tanggal_periksa = today;
 	}
 
 	function openEditImunisasi(item: Imunisasi_balita) {
@@ -343,6 +368,7 @@
 				const payload = {
 					balita_id: formBalita.balita_id,
 					berat_badan: parseFloat(formBalita.berat_badan),
+					tanggal_periksa: formBalita.tanggal_periksa,
 					tinggi_badan: parseFloat(formBalita.tinggi_badan),
 					lingkar_kepala: formBalita.lingkar_kepala ? parseFloat(formBalita.lingkar_kepala) : 0,
 					status_gizi: formBalita.status_gizi,
@@ -355,6 +381,7 @@
 					ibu_hamil_id: formIbuHamil.ibu_hamil_id,
 					usia_kehamilan: parseInt(formIbuHamil.usia_kehamilan),
 					tekanan_darah: formIbuHamil.tekanan_darah,
+					tanggal_periksa: formIbuHamil.tanggal_periksa,
 					berat_badan: parseFloat(formIbuHamil.berat_badan),
 					catatan: formIbuHamil.catatan
 				};
@@ -364,6 +391,7 @@
 				const payload = {
 					lansia_id: formLansia.lansia_id,
 					tekanan_darah: formLansia.tekanan_darah,
+					tanggal_periksa: formLansia.tanggal_periksa,
 					gula_darah: formLansia.gula_darah ? parseFloat(formLansia.gula_darah) : 0,
 					kolesterol: formLansia.kolesterol ? parseFloat(formLansia.kolesterol) : 0,
 					catatan: formLansia.catatan
@@ -958,45 +986,81 @@
 			</div>
 
 			<form onsubmit={handleAddPemeriksaan} class="max-h-[75vh] space-y-4 overflow-y-auto p-6">
-				<div>
-					<label class="mb-1.5 block text-xs font-bold text-gray-700">Pilih Pasien</label>
-					{#if activeTab === 'balita'}
-						<select
-							required
-							disabled={isEditMode}
-							bind:value={formBalita.balita_id}
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
-						>
-							<option value="" disabled selected>-- Pilih Balita --</option>
-							{#each listMasterBalita as b (b.id)}<option value={b.id}
-									>{b.nama_balita} (NIK: {b.nik})</option
-								>{/each}
-						</select>
-					{:else if activeTab === 'ibu_hamil'}
-						<select
-							required
-							disabled={isEditMode}
-							bind:value={formIbuHamil.ibu_hamil_id}
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
-						>
-							<option value="" disabled selected>-- Pilih Ibu Hamil --</option>
-							{#each listMasterIbuHamil as i (i.id)}<option value={i.id}
-									>{i.nama_ibu} (NIK: {i.nik})</option
-								>{/each}
-						</select>
-					{:else}
-						<select
-							required
-							disabled={isEditMode}
-							bind:value={formLansia.lansia_id}
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:bg-white focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
-						>
-							<option value="" disabled selected>-- Pilih Lansia --</option>
-							{#each listMasterLansia as l (l.id)}<option value={l.id}
-									>{l.nama_lengkap} (NIK: {l.nik})</option
-								>{/each}
-						</select>
-					{/if}
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+					<div class="sm:col-span-2">
+						<label class="mb-1.5 block text-xs font-bold text-gray-700">Pilih Pasien</label>
+						{#if activeTab === 'balita'}
+							<select
+								required
+								disabled={isEditMode}
+								bind:value={formBalita.balita_id}
+								class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
+								><option value="" disabled selected>-- Pilih Balita --</option
+								>{#each listMasterBalita as b (b.id)}<option value={b.id}
+										>{b.nama_balita} (NIK: {b.nik})</option
+									>{/each}</select
+							>
+						{:else if activeTab === 'ibu_hamil'}
+							<select
+								required
+								disabled={isEditMode}
+								bind:value={formIbuHamil.ibu_hamil_id}
+								class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
+								><option value="" disabled selected>-- Pilih Ibu Hamil --</option
+								>{#each listMasterIbuHamil as i (i.id)}<option value={i.id}
+										>{i.nama_ibu} (NIK: {i.nik})</option
+									>{/each}</select
+							>
+						{:else}
+							<select
+								required
+								disabled={isEditMode}
+								bind:value={formLansia.lansia_id}
+								class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064] disabled:cursor-not-allowed disabled:opacity-60"
+								><option value="" disabled selected>-- Pilih Lansia --</option
+								>{#each listMasterLansia as l (l.id)}<option value={l.id}
+										>{l.nama_lengkap} (NIK: {l.nik})</option
+									>{/each}</select
+							>
+						{/if}
+					</div>
+
+					<div class="sm:col-span-2">
+						<label class="mb-1.5 block text-xs font-bold text-gray-700">Tanggal Pemeriksaan</label>
+						<div class="flex gap-2">
+							{#if activeTab === 'balita'}
+								<input
+									type="date"
+									required
+									bind:value={formBalita.tanggal_periksa}
+									class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064]"
+								/>
+							{:else if activeTab === 'ibu_hamil'}
+								<input
+									type="date"
+									required
+									bind:value={formIbuHamil.tanggal_periksa}
+									class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064]"
+								/>
+							{:else}
+								<input
+									type="date"
+									required
+									bind:value={formLansia.tanggal_periksa}
+									class="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:border-[#117064] focus:ring-1 focus:ring-[#117064]"
+								/>
+							{/if}
+
+							<button
+								type="button"
+								onclick={setTodayDate}
+								class="flex shrink-0 cursor-pointer items-center justify-center rounded-xl bg-teal-50 px-4 text-[#117064] transition hover:bg-teal-100 active:scale-95"
+								title="Isi dengan Tanggal Hari Ini"
+							>
+								<Clock size={20} />
+							</button>
+						</div>
+					</div>
 				</div>
 
 				<div class="grid grid-cols-2 gap-4">
