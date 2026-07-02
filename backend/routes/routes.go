@@ -18,6 +18,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	ibuHamilController := controllers.NewIbuHamilController(db)
 	dashboardController := controllers.NewDashboardController(db)
 	jadwalController := controllers.NewJadwalController(db)
+	pengaturanController := controllers.NewPengaturanController(db)
 
 	v1 := r.Group("/api/v1")
 	{
@@ -108,6 +109,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			{
 				jadwal.POST("", jadwalController.CreateJadwal)
 				jadwal.GET("", jadwalController.GetListJadwal)
+			}
+
+			// Endpoint Manajemen Pengaturan
+			pengaturan := protected.Group("/pengaturan")
+			pengaturan.Use(middleware.RoleRequired("ADMIN")) // Hanya Admin yang boleh mengubah pengaturan sistem
+			{
+				pengaturan.GET("", pengaturanController.GetPengaturan)
+				pengaturan.PUT("", pengaturanController.UpdatePengaturan)
 			}
 		}
 	}
