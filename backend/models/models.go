@@ -57,9 +57,16 @@ type Balita struct {
 
 type IbuHamil struct {
 	ID              string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	UserID          string    `gorm:"type:uuid;not null" json:"user_id"` // Akun login milik ibu hamil
+	
+	// FIX: Jadikan pointer (*string) dan default:null agar pasien bisa didaftarkan TANPA harus punya akun User dulu
+	UserID          *string   `gorm:"type:uuid;default:null" json:"user_id"` 
+	
 	NIK             string    `gorm:"type:varchar(20);uniqueIndex;not null" json:"nik"`
 	NamaIbu         string    `gorm:"type:varchar(150);not null" json:"nama_ibu"`
+	
+	// FIX: Tambahkan kolom NoHP langsung di tabel IbuHamil, tidak lagi numpang di tabel User
+	NoHP            string    `gorm:"type:varchar(20)" json:"no_hp"` 
+	
 	TanggalLahir    time.Time `gorm:"type:date;not null" json:"tanggal_lahir"`
 	HPL             time.Time `gorm:"type:date;not null" json:"hpl"` // Hari Perkiraan Lahir
 	Alamat          string    `gorm:"type:text" json:"alamat"`
