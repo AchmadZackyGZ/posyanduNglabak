@@ -113,16 +113,28 @@
 			alert('Tidak ada data untuk diekspor!');
 			return;
 		}
-		// Ambil header dari keys array object pertama
-		const headers = Object.keys(laporanList[0]).join(',');
-		// Map isi data menjadi comma-separated
+
+		// A. Buat Header yang rapi (Bukan key JSON mentah)
+		let headerArray: string[] = [];
+		if (selectedJenisLaporan === 'balita') {
+			headerArray = ['No', 'Nama Balita', 'Usia', 'Jenis Kelamin', 'Berat (Kg)', 'Tinggi (Cm)', 'Status Gizi'];
+		} else if (selectedJenisLaporan === 'ibu-hamil') {
+			headerArray = ['No', 'Nama Ibu', 'Usia Kandungan (Mgg)', 'Tensi Darah', 'Berat (Kg)', 'Catatan'];
+		} else if (selectedJenisLaporan === 'lansia') {
+			headerArray = ['No', 'Nama Lansia', 'Usia', 'Tensi Darah', 'Gula Darah', 'Kolesterol', 'Catatan'];
+		}
+		// Gunakan Titik Koma (;) agar langsung rapi saat dibuka di Excel regional Indonesia
+		const headers = headerArray.join(';'); 
+
+		// B. Mapping Isi Data
 		const csvRows = laporanList.map((row) => {
 			return Object.values(row)
-				.map((value) => `"${value}"`)
-				.join(',');
+				.map((value) => `"${value || '-'}"`) // Tambahkan fallback '-' jika data kosong
+				.join(';'); // Gunakan Titik Koma (;)
 		});
 
-		const csvData = [headers, ...csvRows].join('\n');
+		// C. Tambahkan BOM (\ufeff) agar Excel membaca encoding UTF-8 dengan sempurna
+		const csvData = '\ufeff' + [headers, ...csvRows].join('\n');
 		const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
 		const url = window.URL.createObjectURL(blob);
 
@@ -343,18 +355,42 @@
 <!-- CSS KHUSUS UNTUK MODE CETAK (PDF) -->
 <style>
 	@media print {
-		/* Sembunyikan elemen yang tidak perlu dicetak (Sidebar, Tombol, dll) */
+		/* Sembunyikan elemen yang tidak perlu dicetak (Filter, Tombol, Sidebar) */
 		:global(.no-print) {
 			display: none !important;
 		}
-		/* Hilangkan background dan bayangan agar tinta hemat */
+		
+		/* Hilangkan background pembungkus dan bayangan agar tinta hemat dan bersih */
+		:global(body) {
+			background-color: white !important;
+		}
 		.print-container {
 			box-shadow: none !important;
 			border: none !important;
+			margin: 0 !important;
+			padding: 0 !important;
 		}
-		/* Pastikan margin halaman bersih */
+
+		/* KUNCI UTAMA: Hilangkan efek scroll (overflow) agar tabel tidak terpotong */
+		:global(.overflow-x-auto), :global(.overflow-hidden) {
+			overflow: visible !important;
+		}
+
+		/* Paksa tabel menggunakan 100% lebar kertas dan tambahkan garis tegas */
+		table {
+			width: 100% !important;
+			border-collapse: collapse !important;
+		}
+		th, td {
+			border: 1px solid #d1d5db !important; /* Tambahkan border abu-abu tegas untuk cetak */
+			padding: 8px 12px !important;
+			white-space: normal !important; /* Biarkan teks panjang turun ke bawah (wrap) */
+		}
+
+		/* Atur kertas menjadi Landscape (Tidur) dan beri margin proporsional */
 		@page {
-			margin: 1cm;
+			size: landscape;
+			margin: 1.5cm;
 		}
 	}
 </style>
