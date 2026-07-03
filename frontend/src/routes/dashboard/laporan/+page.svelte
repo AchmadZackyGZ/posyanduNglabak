@@ -3,6 +3,8 @@
 	import { onMount } from 'svelte';
 	import { fetchAPI } from '$lib/api';
 	import { FileText, FileSpreadsheet, Printer } from 'lucide-svelte';
+	import jsPDF from 'jspdf';
+	import autoTable from 'jspdf-autotable';
 
 	// DTO LAPORAN
 	interface DetailLaporan {
@@ -146,9 +148,88 @@
 		document.body.removeChild(a);
 	}
 
-	// 2. Export ke PDF (via Native Print Browser)
+// 2. Export ke PDF Resmi (via jsPDF & autoTable)
 	function exportToPDF() {
-		window.print();
+		if (laporanList.length === 0) {
+			alert('Tidak ada data untuk dicetak!');
+			return;
+		}
+
+		// Inisialisasi dokumen PDF (Kertas A4, orientasi 'landscape' / mendatar)
+		const doc = new jsPDF('landscape');
+
+		// --- BAGIAN HEADER / KOP LAPORAN ---
+		doc.setFontSize(16);
+		doc.setFont('helvetica', 'bold');
+		doc.text(`LAPORAN REKAPITULASI POSYANDU`, 14, 20);
+		
+		doc.setFontSize(11);
+		doc.setFont('helvetica', 'normal');
+		const jenisTeks = selectedJenisLaporan.replace('-', ' ').toUpperCase();
+		doc.text(`Kategori: ${jenisTeks}`, 14, 28);
+		doc.text(`Periode: ${selectedPeriode}`, 14, 34);
+
+		// --- SIAPKAN DATA TABEL ---
+		let head: string[][] = [];
+		let body: (string | number)[][] = [];
+
+		if (selectedJenisLaporan === 'balita') {
+			head = [['No', 'Nama Balita', 'Usia', 'L/P', 'Berat (Kg)', 'Tinggi (Cm)', 'Status Gizi']];
+			body = laporanList.map((row) => [
+				row.no,
+				row.nama_balita || '-',
+				row.usia || '-',
+				row.jk || '-',
+				row.berat_kg || 0,
+				row.tinggi_cm || 0,
+				row.status_gizi || '-'
+			]);
+		} else if (selectedJenisLaporan === 'ibu-hamil') {
+			head = [['No', 'Nama Ibu', 'Usia Kandungan (Mgg)', 'Tensi Darah', 'Berat (Kg)', 'Catatan']];
+			body = laporanList.map((row) => [
+				row.no,
+				row.nama_ibu || '-',
+				row.usia_kandungan || 0,
+				row.tekanan_darah || '-',
+				row.berat_kg || 0,
+				row.catatan || '-'
+			]);
+		} else if (selectedJenisLaporan === 'lansia') {
+			head = [['No', 'Nama Lansia', 'Usia', 'Tensi Darah', 'Gula Darah', 'Kolesterol', 'Catatan']];
+			body = laporanList.map((row) => [
+				row.no,
+				row.nama_lansia || '-',
+				row.usia || '-',
+				row.tekanan_darah || '-',
+				row.gula_darah || 0,
+				row.kolesterol || 0,
+				row.catatan || '-'
+			]);
+		}
+
+		// --- GAMBAR TABEL KE DALAM PDF ---
+		autoTable(doc, {
+			startY: 42, // Jarak tabel dari atas kertas
+			head: head,
+			body: body,
+			theme: 'grid', // Gaya tabel kotak-kotak formal
+			headStyles: {
+				fillColor: [17, 112, 100], // Warna Hijau Tosca Posyandu (#117064)
+				textColor: 255,
+				fontStyle: 'bold',
+				halign: 'center'
+			},
+			styles: {
+				fontSize: 10,
+				valign: 'middle'
+			},
+			columnStyles: {
+				0: { halign: 'center', cellWidth: 15 } // Kolom Nomor rata tengah
+			}
+		});
+
+		// --- SIMPAN DAN DOWNLOAD FILE PDF ---
+		doc.save(`Laporan_Resmi_${selectedJenisLaporan}_${selectedPeriode}.pdf`);
 	}
 
 	// Helper warna badge status gizi
