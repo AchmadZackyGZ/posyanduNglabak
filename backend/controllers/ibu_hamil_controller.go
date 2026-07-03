@@ -7,7 +7,6 @@ import (
 	"posyandu-api/models"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -58,35 +57,21 @@ type UpdateIbuHamilInput struct {
 
 // GetListIbuHamil mengambil seluruh data ibu hamil
 func (ic *IbuHamilController) GetListIbuHamil(c *gin.Context) {
-	 // 1. Buat struct kustom (DTO) untuk menggabungkan data IbuHamil murni dengan tambahan NoHP
-	type IbuHamilResponse struct {
-		models.IbuHamil
-		NoHP string `json:"no_hp"` // Menangkap username dari tabel users	
-	}
+	var results []models.IbuHamil
 
-	var results []IbuHamilResponse
-
-	// 2. Lakukan Query JOIN ke tabel users
-	// Kita menarik 'username' dari tabel users dan memberinya nama alias 'no_hp'
-	err := ic.DB.Table("ibu_hamils").
-		Select("ibu_hamils.*, users.username as no_hp").
-		Joins("left join users on users.id = ibu_hamils.user_id").
-		Order("ibu_hamils.created_at desc").
-		Scan(&results).Error
-
-	if err != nil {
+	// FIX: Jauh lebih bersih! Tidak perlu JOIN lagi karena NoHP sudah ada di tabel IbuHamil
+	if err := ic.DB.Order("created_at desc").Find(&results).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data ibu hamil"})
 		return
 	}
 
-	// 3. Kirimkan JSON yang sudah lengkap dengan NoHP ke SvelteKit
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Berhasil mengambil daftar ibu hamil",
 		"data":    results,
 	})
 }
 
-// RegisterIbuHamil mendaftarkan ibu hamil sekaligus membuatkan akun login secara transaksional
+// RegisterIbuHamil mendaftarkan rekam medis ibu hamil MURNI tanpa membuat akun user
 func (ic *IbuHamilController) RegisterIbuHamil(c *gin.Context) {
 	var input RegisterIbuHamilInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -101,52 +86,28 @@ func (ic *IbuHamilController) RegisterIbuHamil(c *gin.Context) {
 		return
 	}
 
-	// Memulai blok transaksi database
-	tx := ic.DB.Begin()
-
-	// 1. Cari atau buat akun mandiri untuk Ibu Hamil (Role: USER)
-	var ibuUser models.User
-	if err := tx.Where("username = ?", input.NoHP).First(&ibuUser).Error; err != nil {
-		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("posyandu123"), bcrypt.DefaultCost)
-		ibuUser = models.User{
-			Username:     input.NoHP,
-			PasswordHash: string(hashedPassword),
-			NamaLengkap:  input.NamaIbu,
-			Role:         "USER",
-			IsActive:     true,
-		}
-		if err := tx.Create(&ibuUser).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat akun otentikasi Ibu Hamil"})
-			return
-		}
-	}
-
-	// 2. Simpan entitas data klinis Ibu Hamil
+	// FIX: Simpan entitas data klinis Ibu Hamil SECARA LANGSUNG
+	// Tidak ada lagi logika pembuatan akun (User) siluman di sini!
 	ibuHamil := models.IbuHamil{
-		UserID:          ibuUser.ID,
 		NIK:             input.NIK,
 		NamaIbu:         input.NamaIbu,
+		NoHP:            input.NoHP, // Disimpan langsung ke kolom baru
 		TanggalLahir:    tglLahir,
 		HPL:             hpl,
 		Alamat:          input.Alamat,
 		StatusKehamilan: input.StatusKehamilan,
 	}
 
-	if err := tx.Create(&ibuHamil).Error; err != nil {
-		tx.Rollback()
+	if err := ic.DB.Create(&ibuHamil).Error; err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "Gagal mendaftar. NIK Ibu Hamil mungkin sudah terdaftar."})
 		return
 	}
-
-	tx.Commit()
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Pendaftaran Ibu Hamil berhasil dicatat",
 		"data": gin.H{
 			"ibu_hamil_id": ibuHamil.ID,
 			"nama":         ibuHamil.NamaIbu,
-			"akun_login":   ibuUser.Username,
 		},
 	})
 }
