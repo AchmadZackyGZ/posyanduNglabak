@@ -19,6 +19,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	dashboardController := controllers.NewDashboardController(db)
 	jadwalController := controllers.NewJadwalController(db)
 	pengaturanController := controllers.NewPengaturanController(db)
+	userController := controllers.NewUserController(db)
 
 	v1 := r.Group("/api/v1")
 	{
@@ -117,6 +118,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			{
 				pengaturan.GET("", pengaturanController.GetPengaturan)
 				pengaturan.PUT("", pengaturanController.UpdatePengaturan)
+			}
+
+			// Endpoint Manajemen Pengguna
+			pengguna := protected.Group("/pengguna")
+			pengguna.Use(middleware.RoleRequired("ADMIN"))
+			{
+				pengguna.GET("", userController.GetListUsers)
+				pengguna.POST("", userController.CreateUser)
+				pengguna.PUT("/:id", userController.UpdateUser)
+				pengguna.PUT("/:id/reset-password", userController.ResetPassword)
 			}
 		}
 	}
