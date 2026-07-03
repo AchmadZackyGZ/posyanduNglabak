@@ -34,7 +34,7 @@
 			localStorage.setItem('user', JSON.stringify(res.user));
 
 			// FIX 1: Tambahkan await sebelum goto
-			await goto('/dashboard');
+			await goto('/dashboard/pengguna');
 		} catch (error: unknown) {
 			// FIX 2: Ganti 'any' menjadi 'unknown'
 			// FIX 3: Validasi tipe error sebelum mengambil error.message
