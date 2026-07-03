@@ -37,7 +37,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		{
 			// Endpoint Dashboard
 			dashboard := protected.Group("/dashboard")
-			dashboard.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			dashboard.Use(middleware.RoleRequired("BIDAN", "KADER"))
 			{
 				dashboard.GET("/summary", dashboardController.GetSummary)
 			}
@@ -59,7 +59,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 			// Endpoint Operasional Balita
 			balita := protected.Group("/balita")
-			balita.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			balita.Use(middleware.RoleRequired("BIDAN", "KADER"))
 			{
 				balita.POST("/register", balitaController.RegisterBalita)
 				balita.POST("/timbang", balitaController.CatatPemeriksaan)
@@ -77,7 +77,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 			// Endpoint Operasional Ibu Hamil
 			ibuHamil := protected.Group("/ibu-hamil")
-			ibuHamil.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			ibuHamil.Use(middleware.RoleRequired("BIDAN", "KADER"))
 			{
 				ibuHamil.POST("/register", ibuHamilController.RegisterIbuHamil)
 				ibuHamil.POST("/periksa", ibuHamilController.CatatPemeriksaan)
@@ -91,7 +91,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 			// Endpoint Operasional Lansia
 			lansia := protected.Group("/lansia")
-			lansia.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			lansia.Use(middleware.RoleRequired("BIDAN", "KADER"))
 			{
 				lansia.POST("/register", lansiaController.RegisterLansia)
 				lansia.POST("/periksa", lansiaController.CatatPemeriksaan)
@@ -105,7 +105,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 
 			// Endpoint Manajemen Jadwal
 			jadwal := protected.Group("/jadwal")
-			jadwal.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			jadwal.Use(middleware.RoleRequired("BIDAN", "KADER"))
 			{
 				jadwal.POST("", jadwalController.CreateJadwal)
 				jadwal.GET("", jadwalController.GetListJadwal)
