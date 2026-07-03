@@ -129,6 +129,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				pengguna.POST("", userController.CreateUser)
 				pengguna.PUT("/:id", userController.UpdateUser)
 				pengguna.PUT("/:id/reset-password", userController.ResetPassword)
+				pengguna.DELETE("/:id", userController.DeleteUser)
 			}
 		}
 	}

@@ -42,7 +42,8 @@ type JadwalKegiatan struct {
 
 type Balita struct {
 	ID            string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	UserID        string    `gorm:"type:uuid;not null" json:"user_id"` // Akun milik orang tua (Role: USER)
+	// FIX: Jadikan pointer (*string) agar pendaftaran balita tidak wajib membuat akun User
+	UserID        *string   `gorm:"type:uuid;default:null" json:"user_id"`
 	NIK           string    `gorm:"type:varchar(20);uniqueIndex;not null" json:"nik"`
 	NamaBalita    string    `gorm:"type:varchar(150);not null" json:"nama_balita"`
 	TanggalLahir  time.Time `gorm:"type:date;not null" json:"tanggal_lahir"`

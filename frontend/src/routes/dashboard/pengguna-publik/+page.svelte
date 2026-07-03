@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fetchAPI } from '$lib/api';
-	import { Users, Search, AlertCircle } from 'lucide-svelte';
+	import { Users, Search, AlertCircle, Trash2 } from 'lucide-svelte';
 
 	interface UserData {
 		id: string;
@@ -27,6 +27,22 @@
 			console.error(error);
 		} finally {
 			isLoading = false;
+		}
+	}
+
+	async function deleteCitizen(id: string, name: string) {
+		const confirmDelete = confirm(
+			`Apakah Anda yakin ingin menghapus akun "${name}" secara permanen?`
+		);
+		if (!confirmDelete) return;
+
+		try {
+			// Memanggil endpoint DELETE yang baru dibuat di Golang
+			await fetchAPI(`/pengguna/${id}`, { method: 'DELETE' });
+			// Jika berhasil, muat ulang tabel
+			loadCitizens();
+		} catch (error: unknown) {
+			errorMessage = (error as Error).message || 'Gagal menghapus data warga.';
 		}
 	}
 
@@ -93,16 +109,18 @@
 					<tr>
 						<th class="px-6 py-4">Nama Lengkap & ID</th>
 						<th class="px-6 py-4 text-center">Status Akun</th>
+						<th class="px-6 py-4 text-right">Tindakan</th>
+						<!-- TAMBAHAN HEADER -->
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-gray-100">
 					{#if isLoading}
 						<tr
-							><td colspan="2" class="py-10 text-center text-gray-400">Memuat data warga...</td></tr
+							><td colspan="3" class="py-10 text-center text-gray-400">Memuat data warga...</td></tr
 						>
 					{:else if filteredCitizens.length === 0}
 						<tr
-							><td colspan="2" class="py-10 text-center text-gray-400"
+							><td colspan="3" class="py-10 text-center text-gray-400"
 								>Tidak ada data warga yang terdaftar.</td
 							></tr
 						>
@@ -128,6 +146,16 @@
 										<span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span> Nonaktif
 									</span>
 								{/if}
+							</td>
+							<!-- TAMBAHAN TOMBOL DELETE -->
+							<td class="px-6 py-4 text-right">
+								<button
+									onclick={() => deleteCitizen(c.id, c.nama_lengkap)}
+									class="inline-flex cursor-pointer items-center justify-center rounded-lg bg-red-50 p-2 text-red-500 transition hover:bg-red-100 hover:text-red-700"
+									title="Hapus Akun Warga"
+								>
+									<Trash2 size={16} />
+								</button>
 							</td>
 						</tr>
 					{/each}

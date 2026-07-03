@@ -7,7 +7,6 @@ import (
 	"posyandu-api/models" // Sesuaikan dengan nama modul Anda
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -83,7 +82,7 @@ func (bc *BalitaController) GetListBalita(c *gin.Context) {
 	})
 }
 
-// RegisterBalita mendaftarkan pasien sekaligus membuatkan akun USER untuk orang tua
+// RegisterBalita mendaftarkan pasien MURNI tanpa membuat akun USER untuk orang tua
 func (bc *BalitaController) RegisterBalita(c *gin.Context) {
 	var input RegisterBalitaInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -97,53 +96,28 @@ func (bc *BalitaController) RegisterBalita(c *gin.Context) {
 		return
 	}
 
-	// Gunakan transaksi DB agar jika salah satu gagal, semuanya di-rollback
-	tx := bc.DB.Begin()
-
-	// 1. Cari atau buat akun Orang Tua (Role: USER) menggunakan NoHP sebagai username
-	var ortu models.User
-	if err := tx.Where("username = ?", input.NoHP).First(&ortu).Error; err != nil {
-		// Jika belum ada, buat akun baru dengan password default "posyandu123"
-		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("posyandu123"), bcrypt.DefaultCost)
-		ortu = models.User{
-			Username:     input.NoHP,
-			PasswordHash: string(hashedPassword),
-			NamaLengkap:  input.NamaOrangTua,
-			Role:         "USER",
-			IsActive:     true,
-		}
-		if err := tx.Create(&ortu).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat akun orang tua"})
-			return
-		}
-	}
-
-	// 2. Simpan Data Balita dengan mengaitkannya ke UserID orang tua
+	// FIX: Simpan Data Balita SECARA LANGSUNG tanpa transaksi pembuatan User
+	// (Kolom UserID akan bernilai NULL sesuai perubahan di models.go sebelumnya)
 	balita := models.Balita{
-		UserID:       ortu.ID,
 		NIK:          input.NIK,
 		NamaBalita:   input.NamaBalita,
 		TanggalLahir: tglLahir,
 		JenisKelamin: input.JenisKelamin,
 		NamaOrangTua: input.NamaOrangTua,
 		Alamat:       input.Alamat,
+		// NoHP saat ini tidak ada di struct models.Balita, jadi kita abaikan dulu dari input
 	}
 
-	if err := tx.Create(&balita).Error; err != nil {
-		tx.Rollback()
+	if err := bc.DB.Create(&balita).Error; err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "Gagal mendaftarkan balita. NIK mungkin sudah terdaftar."})
 		return
 	}
-
-	tx.Commit()
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Pendaftaran Balita berhasil",
 		"data": gin.H{
 			"balita_id": balita.ID,
 			"nama":      balita.NamaBalita,
-			"ortu_akun": ortu.Username,
 		},
 	})
 }
@@ -304,6 +278,11 @@ func (bc *BalitaController) DeleteBalita(c *gin.Context){
 		c.JSON(http.StatusNotFound, gin.H{"error": "Data balita tidak ditemukan"})
 		return
 	}
+
+	// --- FIX: PEMUTUSAN RANTAI FOREIGN KEY ---
+	// Hapus secara paksa semua riwayat Pemeriksaan dan Imunisasi milik balita ini terlebih dahulu
+	bc.DB.Where("balita_id = ?", id).Delete(&models.PemeriksaanBalita{})
+	bc.DB.Where("balita_id = ?", id).Delete(&models.ImunisasiBalita{})
 
 	// 2. Eksekusi penghapusan dari database
 	if err := bc.DB.Delete(&balita).Error; err != nil {

@@ -168,3 +168,23 @@ func (uc *UserController) ResetPassword(c *gin.Context) {
 	uc.DB.Save(&user)
 	c.JSON(http.StatusOK, gin.H{"message": "Kata sandi pengguna berhasil direset"})
 }
+
+// 5. Hapus Pengguna (Hak Istimewa Admin)
+func (uc *UserController) DeleteUser(c *gin.Context) {
+	id := c.Param("id")
+	var user models.User
+
+	// Cek apakah data pengguna ada
+	if err := uc.DB.First(&user, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Pengguna tidak ditemukan"})
+		return
+	}
+
+	// Eksekusi penghapusan dari database
+	if err := uc.DB.Delete(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus pengguna"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Data pengguna berhasil dihapus secara permanen"})
+}
