@@ -3,6 +3,8 @@
 	import { onMount } from 'svelte';
 	import { fetchAPI } from '$lib/api';
 	import { FileText, FileSpreadsheet, Printer } from 'lucide-svelte';
+	import jsPDF from 'jspdf';
+	import autoTable from 'jspdf-autotable';
 
 	// DTO LAPORAN
 	interface DetailLaporan {
@@ -113,16 +115,28 @@
 			alert('Tidak ada data untuk diekspor!');
 			return;
 		}
-		// Ambil header dari keys array object pertama
-		const headers = Object.keys(laporanList[0]).join(',');
-		// Map isi data menjadi comma-separated
+
+		// A. Buat Header yang rapi (Bukan key JSON mentah)
+		let headerArray: string[] = [];
+		if (selectedJenisLaporan === 'balita') {
+			headerArray = ['No', 'Nama Balita', 'Usia', 'Jenis Kelamin', 'Berat (Kg)', 'Tinggi (Cm)', 'Status Gizi'];
+		} else if (selectedJenisLaporan === 'ibu-hamil') {
+			headerArray = ['No', 'Nama Ibu', 'Usia Kandungan (Mgg)', 'Tensi Darah', 'Berat (Kg)', 'Catatan'];
+		} else if (selectedJenisLaporan === 'lansia') {
+			headerArray = ['No', 'Nama Lansia', 'Usia', 'Tensi Darah', 'Gula Darah', 'Kolesterol', 'Catatan'];
+		}
+		// Gunakan Titik Koma (;) agar langsung rapi saat dibuka di Excel regional Indonesia
+		const headers = headerArray.join(';'); 
+
+		// B. Mapping Isi Data
 		const csvRows = laporanList.map((row) => {
 			return Object.values(row)
-				.map((value) => `"${value}"`)
-				.join(',');
+				.map((value) => `"${value || '-'}"`) // Tambahkan fallback '-' jika data kosong
+				.join(';'); // Gunakan Titik Koma (;)
 		});
 
-		const csvData = [headers, ...csvRows].join('\n');
+		// C. Tambahkan BOM (\ufeff) agar Excel membaca encoding UTF-8 dengan sempurna
+		const csvData = '\ufeff' + [headers, ...csvRows].join('\n');
 		const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
 		const url = window.URL.createObjectURL(blob);
 
@@ -134,9 +148,88 @@
 		document.body.removeChild(a);
 	}
 
-	// 2. Export ke PDF (via Native Print Browser)
+// 2. Export ke PDF Resmi (via jsPDF & autoTable)
 	function exportToPDF() {
-		window.print();
+		if (laporanList.length === 0) {
+			alert('Tidak ada data untuk dicetak!');
+			return;
+		}
+
+		// Inisialisasi dokumen PDF (Kertas A4, orientasi 'landscape' / mendatar)
+		const doc = new jsPDF('landscape');
+
+		// --- BAGIAN HEADER / KOP LAPORAN ---
+		doc.setFontSize(16);
+		doc.setFont('helvetica', 'bold');
+		doc.text(`LAPORAN REKAPITULASI POSYANDU`, 14, 20);
+		
+		doc.setFontSize(11);
+		doc.setFont('helvetica', 'normal');
+		const jenisTeks = selectedJenisLaporan.replace('-', ' ').toUpperCase();
+		doc.text(`Kategori: ${jenisTeks}`, 14, 28);
+		doc.text(`Periode: ${selectedPeriode}`, 14, 34);
+
+		// --- SIAPKAN DATA TABEL ---
+		let head: string[][] = [];
+		let body: (string | number)[][] = [];
+
+		if (selectedJenisLaporan === 'balita') {
+			head = [['No', 'Nama Balita', 'Usia', 'L/P', 'Berat (Kg)', 'Tinggi (Cm)', 'Status Gizi']];
+			body = laporanList.map((row) => [
+				row.no,
+				row.nama_balita || '-',
+				row.usia || '-',
+				row.jk || '-',
+				row.berat_kg || 0,
+				row.tinggi_cm || 0,
+				row.status_gizi || '-'
+			]);
+		} else if (selectedJenisLaporan === 'ibu-hamil') {
+			head = [['No', 'Nama Ibu', 'Usia Kandungan (Mgg)', 'Tensi Darah', 'Berat (Kg)', 'Catatan']];
+			body = laporanList.map((row) => [
+				row.no,
+				row.nama_ibu || '-',
+				row.usia_kandungan || 0,
+				row.tekanan_darah || '-',
+				row.berat_kg || 0,
+				row.catatan || '-'
+			]);
+		} else if (selectedJenisLaporan === 'lansia') {
+			head = [['No', 'Nama Lansia', 'Usia', 'Tensi Darah', 'Gula Darah', 'Kolesterol', 'Catatan']];
+			body = laporanList.map((row) => [
+				row.no,
+				row.nama_lansia || '-',
+				row.usia || '-',
+				row.tekanan_darah || '-',
+				row.gula_darah || 0,
+				row.kolesterol || 0,
+				row.catatan || '-'
+			]);
+		}
+
+		// --- GAMBAR TABEL KE DALAM PDF ---
+		autoTable(doc, {
+			startY: 42, // Jarak tabel dari atas kertas
+			head: head,
+			body: body,
+			theme: 'grid', // Gaya tabel kotak-kotak formal
+			headStyles: {
+				fillColor: [17, 112, 100], // Warna Hijau Tosca Posyandu (#117064)
+				textColor: 255,
+				fontStyle: 'bold',
+				halign: 'center'
+			},
+			styles: {
+				fontSize: 10,
+				valign: 'middle'
+			},
+			columnStyles: {
+				0: { halign: 'center', cellWidth: 15 } // Kolom Nomor rata tengah
+			}
+		});
+
+		// --- SIMPAN DAN DOWNLOAD FILE PDF ---
+		doc.save(`Laporan_Resmi_${selectedJenisLaporan}_${selectedPeriode}.pdf`);
 	}
 
 	// Helper warna badge status gizi
@@ -343,18 +436,42 @@
 <!-- CSS KHUSUS UNTUK MODE CETAK (PDF) -->
 <style>
 	@media print {
-		/* Sembunyikan elemen yang tidak perlu dicetak (Sidebar, Tombol, dll) */
+		/* Sembunyikan elemen yang tidak perlu dicetak (Filter, Tombol, Sidebar) */
 		:global(.no-print) {
 			display: none !important;
 		}
-		/* Hilangkan background dan bayangan agar tinta hemat */
+		
+		/* Hilangkan background pembungkus dan bayangan agar tinta hemat dan bersih */
+		:global(body) {
+			background-color: white !important;
+		}
 		.print-container {
 			box-shadow: none !important;
 			border: none !important;
+			margin: 0 !important;
+			padding: 0 !important;
 		}
-		/* Pastikan margin halaman bersih */
+
+		/* KUNCI UTAMA: Hilangkan efek scroll (overflow) agar tabel tidak terpotong */
+		:global(.overflow-x-auto), :global(.overflow-hidden) {
+			overflow: visible !important;
+		}
+
+		/* Paksa tabel menggunakan 100% lebar kertas dan tambahkan garis tegas */
+		table {
+			width: 100% !important;
+			border-collapse: collapse !important;
+		}
+		th, td {
+			border: 1px solid #d1d5db !important; /* Tambahkan border abu-abu tegas untuk cetak */
+			padding: 8px 12px !important;
+			white-space: normal !important; /* Biarkan teks panjang turun ke bawah (wrap) */
+		}
+
+		/* Atur kertas menjadi Landscape (Tidur) dan beri margin proporsional */
 		@page {
-			margin: 1cm;
+			size: landscape;
+			margin: 1.5cm;
 		}
 	}
 </style>
