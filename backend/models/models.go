@@ -84,6 +84,19 @@ type Lansia struct {
 	Pemeriksaans []PemeriksaanLansia `gorm:"foreignKey:LansiaID" json:"pemeriksaans,omitempty"`
 }
 
+type Pengaturan struct {
+	ID             string `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	NamaPosyandu   string `gorm:"type:varchar(150)" json:"nama_posyandu"`
+	Alamat         string `gorm:"type:text" json:"alamat"`
+	NomorHp        string `gorm:"type:varchar(20)" json:"nomor_hp"`
+	WilayahKerja   string `gorm:"type:varchar(150)" json:"wilayah_kerja"`
+	NotifJadwal    bool   `gorm:"default:true" json:"notif_jadwal"`
+	NotifImunisasi bool   `gorm:"default:true" json:"notif_imunisasi"`
+	AlertStunting  bool   `gorm:"default:true" json:"alert_stunting"`
+	BackupOtomatis bool   `gorm:"default:true" json:"backup_otomatis"`
+	ModeGelap      bool   `gorm:"default:false" json:"mode_gelap"`
+}
+
 // ==========================================
 // 3. ENTITAS TRANSAKSIONAL (REKAM MEDIS)
 // ==========================================
