@@ -65,6 +65,27 @@ func (uc *UserController) GetListUsers(c *gin.Context) {
 	})
 }
 
+// 1b. Ambil Daftar Warga (Khusus Role USER)
+func (uc *UserController) GetPublicUsers(c *gin.Context) {
+	var users []UserResponse
+	
+	// Hanya tarik data yang role-nya adalah 'USER'
+	if err := uc.DB.Model(&models.User{}).
+		Select("id, username, nama_lengkap, role, is_active").
+		Where("role = ?", "USER").
+		Order("created_at desc").
+		Find(&users).Error; err != nil {
+		
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data warga"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil", 
+		"data": users,
+	})
+}
+
 // 2. Buat Pengguna Baru
 func (uc *UserController) CreateUser(c *gin.Context) {
 	var input CreateUserInput
