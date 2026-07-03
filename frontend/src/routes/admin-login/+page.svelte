@@ -21,7 +21,7 @@
 			});
 
 			// PENGAMANAN GANDA: Cek apakah role benar-benar ADMIN
-			const userRole = (res.data.user.Role || res.data.user.role || '').toUpperCase();
+			const userRole = (res.user.Role || res.user.role || '').toUpperCase();
 
 			if (userRole !== 'ADMIN') {
 				errorMessage =
@@ -30,8 +30,8 @@
 			}
 
 			// Jika lolos, simpan token dan arahkan ke Dashboard
-			localStorage.setItem('token', res.data.token);
-			localStorage.setItem('user', JSON.stringify(res.data.user));
+			localStorage.setItem('token', res.token);
+			localStorage.setItem('user', JSON.stringify(res.user));
 
 			// FIX 1: Tambahkan await sebelum goto
 			await goto('/dashboard');
