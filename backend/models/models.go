@@ -167,3 +167,17 @@ type PemeriksaanLansia struct {
 	Pemeriksa User `gorm:"foreignKey:DiperiksaOleh" json:"pemeriksa"`
 	Lansia  Lansia `gorm:"foreignKey:LansiaID" json:"lansia"`
 }
+
+
+// ==========================================
+// 4. ENTITAS LOGISTIK & INVENTARIS
+// ==========================================
+
+type Inventaris struct {
+	ID         string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	NamaBarang string    `gorm:"type:varchar(150);not null" json:"nama_barang"`
+	Kategori   string    `gorm:"type:varchar(50);not null" json:"kategori"` // Vitamin, Obat, PMT
+	Stok       int       `gorm:"not null;default:0" json:"stok"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
