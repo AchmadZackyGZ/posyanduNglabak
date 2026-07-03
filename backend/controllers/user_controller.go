@@ -35,17 +35,55 @@ type ResetPasswordInput struct {
 	NewPassword string `json:"new_password" binding:"required"`
 }
 
-// 1. Ambil Daftar Pengguna
+type UserResponse struct {
+	ID          string `json:"id"`
+	Username    string `json:"username"`
+	NamaLengkap string `json:"nama_lengkap"`
+	Role        string `json:"role"`
+	IsActive    bool   `json:"is_active"`
+}
+
+// 1. Ambil Daftar Pengguna (Kecuali ADMIN)
 func (uc *UserController) GetListUsers(c *gin.Context) {
-	var users []models.User
+	var users []UserResponse
 	
-	// Kita gunakan Select untuk MENCEGAH password_hash terkirim ke frontend demi keamanan
-	if err := uc.DB.Select("id, username, nama_lengkap, role, is_active, created_at").Order("created_at desc").Find(&users).Error; err != nil {
+	// Gunakan Model(&models.User{}) agar GORM tahu tabel mana yang diakses,
+	// lalu petakan hasilnya langsung ke struct UserResponse
+	if err := uc.DB.Model(&models.User{}).
+		Select("id, username, nama_lengkap, role, is_active").
+		Where("role IN ?", []string{"KADER", "BIDAN"}). // SECARA SPESIFIK HANYA MENARIK STAFF
+		Order("created_at desc").
+		Find(&users).Error; err != nil {
+		
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data pengguna"})
 		return
 	}
 	
-	c.JSON(http.StatusOK, gin.H{"message": "Berhasil", "data": users})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil", 
+		"data": users,
+	})
+}
+
+// 1b. Ambil Daftar Warga (Khusus Role USER)
+func (uc *UserController) GetPublicUsers(c *gin.Context) {
+	var users []UserResponse
+	
+	// Hanya tarik data yang role-nya adalah 'USER'
+	if err := uc.DB.Model(&models.User{}).
+		Select("id, username, nama_lengkap, role, is_active").
+		Where("role = ?", "USER").
+		Order("created_at desc").
+		Find(&users).Error; err != nil {
+		
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data warga"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil", 
+		"data": users,
+	})
 }
 
 // 2. Buat Pengguna Baru

@@ -125,6 +125,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			pengguna.Use(middleware.RoleRequired("ADMIN"))
 			{
 				pengguna.GET("", userController.GetListUsers)
+				pengguna.GET("/publik", userController.GetPublicUsers)
 				pengguna.POST("", userController.CreateUser)
 				pengguna.PUT("/:id", userController.UpdateUser)
 				pengguna.PUT("/:id/reset-password", userController.ResetPassword)
