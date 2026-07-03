@@ -53,31 +53,31 @@
 
 	let currentPath = $derived($page.url.pathname);
 
-	// DEFINISI MENU & HAK AKSES (RBAC)
+	// DEFINISI MENU & HAK AKSES (RBAC) YANG SUDAH DISINKRONKAN DENGAN BACKEND
 	let menuItems = $derived([
 		{
 			path: '/dashboard',
 			label: 'Beranda',
 			icon: LayoutDashboard,
-			roles: ['ADMIN', 'KADER', 'BIDAN']
+			roles: ['KADER', 'BIDAN'] // Admin tidak perlu lihat grafik harian
 		},
 		{
 			path: '/dashboard/balita',
 			label: 'Data Balita',
 			icon: Baby,
-			roles: ['ADMIN', 'KADER', 'BIDAN']
+			roles: ['KADER', 'BIDAN']
 		},
 		{
 			path: '/dashboard/ibu-hamil',
 			label: 'Data Ibu Hamil',
 			icon: HeartPulse,
-			roles: ['ADMIN', 'KADER', 'BIDAN']
+			roles: ['KADER', 'BIDAN']
 		},
 		{
 			path: '/dashboard/lansia',
 			label: 'Data Lansia',
 			icon: Activity,
-			roles: ['ADMIN', 'KADER', 'BIDAN']
+			roles: ['KADER', 'BIDAN']
 		},
 		{
 			path: '/dashboard/pemeriksaan',
@@ -89,20 +89,25 @@
 			path: '/dashboard/jadwal',
 			label: 'Jadwal Kegiatan',
 			icon: CalendarDays,
-			roles: ['ADMIN', 'KADER', 'BIDAN']
+			roles: ['KADER', 'BIDAN']
 		},
 		{
 			path: '/dashboard/laporan',
 			label: 'Laporan',
 			icon: FileText,
-			roles: ['ADMIN', 'KADER', 'BIDAN']
+			roles: ['ADMIN', 'KADER', 'BIDAN'] // Semua role boleh lihat laporan
 		},
-		{ path: '/dashboard/pengguna', label: 'Pengguna', icon: Users, roles: ['ADMIN'] },
+		{
+			path: '/dashboard/pengguna',
+			label: 'Pengguna',
+			icon: Users,
+			roles: ['ADMIN'] // Khusus Admin
+		},
 		{
 			path: '/dashboard/pengaturan',
 			label: 'Pengaturan',
 			icon: Settings,
-			roles: ['ADMIN', 'KADER', 'BIDAN']
+			roles: ['ADMIN'] // <--- FIX: KHUSUS ADMIN SAJA
 		}
 	]);
 
