@@ -20,6 +20,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	jadwalController := controllers.NewJadwalController(db)
 	pengaturanController := controllers.NewPengaturanController(db)
 	userController := controllers.NewUserController(db)
+	inventarisController := controllers.NewInventarisController(db)
 
 	v1 := r.Group("/api/v1")
 	{
@@ -130,6 +131,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				pengguna.PUT("/:id", userController.UpdateUser)
 				pengguna.PUT("/:id/reset-password", userController.ResetPassword)
 				pengguna.DELETE("/:id", userController.DeleteUser)
+			}
+
+			// Endpoint Manajemen Inventaris Logistik
+			inventaris := protected.Group("/inventaris")
+			inventaris.Use(middleware.RoleRequired("BIDAN", "KADER")) // Sesuai Use Case Diagram PDF
+			{
+				inventaris.GET("", inventarisController.GetListInventaris)
+				inventaris.POST("", inventarisController.CreateInventaris)
+				inventaris.PUT("/:id", inventarisController.UpdateInventaris)
+				inventaris.PATCH("/:id/stok", inventarisController.UpdateStok)
+				inventaris.DELETE("/:id", inventarisController.DeleteInventaris)
 			}
 		}
 	}
