@@ -45,6 +45,7 @@ func ConnectDB() *gorm.DB {
 		&models.PemeriksaanIbuHamil{},
 		&models.PemeriksaanLansia{},
 		&models.Pengaturan{},
+		&models.Inventaris{},
 	)
 	if err != nil {
 		log.Fatal("❌ Gagal menjalankan migrasi tabel:", err)
