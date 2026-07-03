@@ -363,9 +363,9 @@
 								bind:value={formData.role}
 								class="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-teal-500 focus:outline-none"
 							>
+								<!-- FIX: Hanya tampilkan role sesuai PRD operasional -->
 								<option value="KADER">KADER (Operasional)</option>
 								<option value="BIDAN">BIDAN (Medis)</option>
-								<option value="ADMIN">ADMINISTRATOR (IT)</option>
 							</select>
 						</div>
 					</div>

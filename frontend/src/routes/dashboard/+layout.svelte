@@ -22,7 +22,8 @@
 	import '../layout.css';
 	let { children } = $props();
 
-	let user = $state<{ NamaLengkap: string; Role: string } | null>(null);
+	// 1. Sesuaikan interface dengan format JSON dari Golang (huruf kecil)
+	let user = $state<{ nama_lengkap: string; role: string } | null>(null);
 	let isSidebarOpen = $state(false);
 
 	onMount(() => {
@@ -38,10 +39,10 @@
 			try {
 				user = JSON.parse(userData);
 			} catch {
-				user = { NamaLengkap: 'Petugas Aktif', Role: 'KADER' };
+				user = { nama_lengkap: 'Petugas Aktif', role: 'KADER' };
 			}
 		} else {
-			user = { NamaLengkap: 'Petugas Aktif', Role: 'KADER' };
+			user = { nama_lengkap: 'Petugas Aktif', role: 'KADER' };
 		}
 	});
 
@@ -111,8 +112,8 @@
 		}
 	]);
 
-	// FIX: Ambil role dari backend, amankan jika menggunakan huruf kecil (role) atau kapital (Role), lalu paksa jadi UPPERCASE
-	let currentRole = $derived((user?.Role || user?.Role || 'KADER').toUpperCase());
+	// 2. Perbaiki pembacaan Role dari user?.role (huruf kecil)
+	let currentRole = $derived((user?.role || 'KADER').toUpperCase());
 
 	// Filter menu yang hanya boleh dilihat oleh Role pengguna saat ini
 	let visibleMenu = $derived(menuItems.filter((m) => m.roles.includes(currentRole)));
@@ -163,11 +164,13 @@
 				<div
 					class="flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-bold text-[#117064]"
 				>
-					{user?.NamaLengkap ? user.NamaLengkap.charAt(0).toUpperCase() : 'P'}
+					<!-- Ambil inisial dari nama_lengkap -->
+					{user?.nama_lengkap ? user.nama_lengkap.charAt(0).toUpperCase() : 'P'}
 				</div>
 				<div class="flex-1 overflow-hidden">
-					<p class="truncate text-xs font-bold text-white">{user?.NamaLengkap || 'Petugas'}</p>
-					<p class="text-[10px] text-teal-200">{user?.Role || 'KADER'}</p>
+					<!-- Tampilkan nama_lengkap dan role -->
+					<p class="truncate text-xs font-bold text-white">{user?.nama_lengkap || 'Petugas'}</p>
+					<p class="text-[10px] text-teal-200">{user?.role?.toUpperCase() || 'KADER'}</p>
 				</div>
 				<button
 					onclick={handleLogout}
