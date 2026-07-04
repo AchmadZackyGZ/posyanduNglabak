@@ -31,6 +31,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", authController.Login)
+			auth.POST("/register", authController.Register)
 		}
 
 		// Blok rute terproteksi (Memerlukan validasi token JWT)
