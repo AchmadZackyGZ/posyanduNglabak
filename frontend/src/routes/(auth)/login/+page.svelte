@@ -1,10 +1,10 @@
 <script lang="ts">
 	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { goto } from '$app/navigation';
-	
+
 	// 1. Mengimpor berkas gambar logo fisik dari folder assets
 	import logoPosyandu from '$lib/assets/logo-posyandu.png';
-	
+
 	// 2. Mengimpor ikon elegan dari lucide-svelte
 	import { User, ClipboardList, Stethoscope } from 'lucide-svelte';
 
@@ -42,7 +42,8 @@
 
 			goto('/dashboard');
 		} catch {
-			errorMessage = 'Koneksi ditolak peladen. Pastikan Go backend aktif dan izin CORS telah terpasang.';
+			errorMessage =
+				'Koneksi ditolak peladen. Pastikan Go backend aktif dan izin CORS telah terpasang.';
 		} finally {
 			isLoading = false;
 		}
@@ -62,9 +63,12 @@
 
 <div class="flex min-h-screen items-center justify-center bg-[#14a38b] p-4">
 	<div class="w-full max-w-[420px] rounded-[28px] bg-white px-8 py-10 shadow-2xl">
-		
 		<div class="mx-auto flex h-24 items-center justify-center">
-			<img src={logoPosyandu} alt="Logo Posyandu Sehat Bersama" class="h-full w-auto object-contain drop-shadow-sm" />
+			<img
+				src={logoPosyandu}
+				alt="Logo Posyandu Sehat Bersama"
+				class="h-full w-auto object-contain drop-shadow-sm"
+			/>
 		</div>
 
 		<div class="mt-4 text-center">
@@ -78,7 +82,10 @@
 				<button
 					type="button"
 					onclick={() => (selectedRole = role.id)}
-					class="flex cursor-pointer flex-col items-center justify-center rounded-xl border py-2.5 transition-all {selectedRole === role.id ? 'border-[#0f6456] bg-[#f0fdf4] text-[#0f6456] shadow-xs' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}"
+					class="flex cursor-pointer flex-col items-center justify-center rounded-xl border py-2.5 transition-all {selectedRole ===
+					role.id
+						? 'border-[#0f6456] bg-[#f0fdf4] text-[#0f6456] shadow-xs'
+						: 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}"
 				>
 					{#if role.id === 'User'}
 						<User class="mb-1 h-5 w-5" strokeWidth="2.5" />
@@ -87,7 +94,7 @@
 					{:else}
 						<Stethoscope class="mb-1 h-5 w-5" strokeWidth="2.5" />
 					{/if}
-					
+
 					<span class="text-xs font-bold tracking-tight">{role.label}</span>
 				</button>
 			{/each}
@@ -107,8 +114,8 @@
 					type="text"
 					bind:value={username}
 					required
-					placeholder="Masukkan username"
-					class="mt-1.5 block w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm shadow-xs outline-none transition-all focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
+					placeholder="Masukkan Nomor HP anda"
+					class="mt-1.5 block w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm shadow-xs transition-all outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
 				/>
 			</div>
 
@@ -120,7 +127,7 @@
 					bind:value={password}
 					required
 					placeholder="••••••••"
-					class="mt-1.5 block w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm shadow-xs outline-none transition-all focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
+					class="mt-1.5 block w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm shadow-xs transition-all outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
 				/>
 			</div>
 
@@ -134,8 +141,11 @@
 					<span class="text-xs font-semibold text-gray-600">Ingat saya</span>
 				</label>
 
-				<a href="#lupa" class="text-xs font-bold text-[#0f6456] transition-colors hover:underline">
-					Lupa password?
+				<a
+					href="/register"
+					class="text-xs font-bold text-[#0f6456] transition-colors hover:underline"
+				>
+					Belum punya akun? Daftar di sini
 				</a>
 			</div>
 
@@ -146,21 +156,26 @@
 			>
 				{#if isLoading}
 					<svg class="mr-2 h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+						></circle>
+						<path
+							class="opacity-75"
+							fill="currentColor"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+						></path>
 					</svg>
 					Memverifikasi...
 				{:else}
 					Masuk
 				{/if}
 			</button>
+			<a href="#lupa" class="text-xs font-bold text-[#0f6456] transition-colors hover:underline">
+				Lupa password?
+			</a>
 		</form>
 
 		<div class="mt-8 border-t border-gray-100 pt-4 text-center">
-			<p class="text-[10px] text-gray-400">
-				© 2026 Posyandu Sehat Bersama. All rights reserved.
-			</p>
+			<p class="text-[10px] text-gray-400">© 2026 Posyandu Sehat Bersama. All rights reserved.</p>
 		</div>
-
 	</div>
 </div>
