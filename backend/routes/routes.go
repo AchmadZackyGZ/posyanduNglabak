@@ -21,6 +21,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	pengaturanController := controllers.NewPengaturanController(db)
 	userController := controllers.NewUserController(db)
 	inventarisController := controllers.NewInventarisController(db)
+	wargaController := controllers.NewWargaController(db)
 
 	v1 := r.Group("/api/v1")
 	{
@@ -143,6 +144,13 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				inventaris.PUT("/:id", inventarisController.UpdateInventaris)
 				inventaris.PATCH("/:id/stok", inventarisController.UpdateStok)
 				inventaris.DELETE("/:id", inventarisController.DeleteInventaris)
+			}
+
+			// Endpoint Khusus Warga (Orang Tua / Peserta)
+			warga := protected.Group("/warga")
+			warga.Use(middleware.RoleRequired("USER")) // <--- Akses khusus warga
+			{
+				warga.GET("/kms", wargaController.GetKMSAnak)
 			}
 		}
 	}
