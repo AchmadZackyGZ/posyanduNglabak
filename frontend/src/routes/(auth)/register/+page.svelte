@@ -7,7 +7,6 @@
 		Phone,
 		Lock,
 		HeartPulse,
-		Sparkles,
 		ArrowRight,
 		AlertCircle,
 		CheckCircle2

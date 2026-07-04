@@ -40,7 +40,16 @@
 			localStorage.setItem('token', data.token);
 			localStorage.setItem('user', JSON.stringify(data.user));
 
-			goto('/dashboard');
+			// PERCABANGAN BERDASARKAN ROLE
+			const userRole = data.user.role;
+
+			if (userRole === 'USER') {
+				// Jika Warga, arahkan ke halaman khusus warga
+				goto('/dashboard-warga'); // (Kita akan membuat halaman ini nanti)
+			} else {
+				// Jika Admin, Kader, atau Bidan, arahkan ke dashboard utama
+				goto('/dashboard');
+			}
 		} catch {
 			errorMessage =
 				'Koneksi ditolak peladen. Pastikan Go backend aktif dan izin CORS telah terpasang.';
