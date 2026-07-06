@@ -23,12 +23,22 @@
 		pemeriksaans: Pemeriksaan[];
 	}
 
+	// 1. Interface untuk data mentah dari API (pemeriksaans bisa null)
+	interface BalitaResponse {
+		id: string;
+		nama_balita: string;
+		nik: string;
+		tanggal_lahir: string;
+		jenis_kelamin: string;
+		nama_orang_tua: string;
+		pemeriksaans: Pemeriksaan[] | null;
+	}
+
 	let dataKMS = $state<BalitaKMS[]>([]);
 	let selectedAnakIndex = $state(0);
 	let isLoading = $state(true);
 	let errorMessage = $state('');
 
-	// References untuk canvas grafik
 	let chartCanvas = $state<HTMLCanvasElement | null>(null);
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,16 +47,26 @@
 	async function loadKMSData() {
 		try {
 			const res = await fetchAPI('/warga/kms');
-			dataKMS = res.data || [];
+
+			// TypeScript sekarang tahu persis tipe data 'anak' dan hasil return-nya
+			dataKMS = (res.data || []).map(
+				(anak: BalitaResponse): BalitaKMS => ({
+					...anak,
+					pemeriksaans: anak.pemeriksaans || []
+				})
+			);
 		} catch (error: unknown) {
-			errorMessage = (error as Error).message || 'Gagal memuat rekam medis KMS Anda.';
+			errorMessage =
+				error instanceof Error
+					? error.message || 'Gagal memuat rekam medis KMS Anda.'
+					: 'Gagal memuat rekam medis KMS Anda.';
 			console.error(error);
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	function hitungUmurBulan(tanggalLahirStr: string, tanggalPeriksaStr: string): number {
+	function hitungUmurBulan(tanggalLahirStr: string, tanggalPeriksaStr: string): number {             
 		const lahir = new Date(tanggalLahirStr);
 		const periksa = new Date(tanggalPeriksaStr);
 		return (
@@ -57,7 +77,6 @@
 	function renderChart(anak: BalitaKMS) {
 		if (!chartCanvas || !anak.pemeriksaans || anak.pemeriksaans.length === 0) return;
 
-		// Hancurkan chart lama jika ada perpindahan anak
 		if (chartInstance) {
 			chartInstance.destroy();
 		}
@@ -127,22 +146,23 @@
 		await loadKMSData();
 	});
 
-	// Otomatis render ulang chart jika pilihan anak berganti atau data selesai dimuat
 	$effect(() => {
 		if (dataKMS.length > 0 && dataKMS[selectedAnakIndex]) {
-			// Berikan sedikit jeda agar canvas ter-render sempurna di DOM sebelum digambar
 			setTimeout(() => renderChart(dataKMS[selectedAnakIndex]), 50);
 		}
 	});
 
 	let anakTerpilih = $derived(dataKMS[selectedAnakIndex] || null);
+
+	// FIX: Pelindung untuk pemeriksaan terakhir agar tidak error jika array kosong
 	let pemeriksaanTerakhir = $derived(
-		anakTerpilih?.pemeriksaans?.[anakTerpilih.pemeriksaans.length - 1] || null
+		anakTerpilih?.pemeriksaans && anakTerpilih.pemeriksaans.length > 0
+			? anakTerpilih.pemeriksaans[anakTerpilih.pemeriksaans.length - 1]
+			: null
 	);
 </script>
 
 <svelte:head>
-	<!-- Mengambil Chart.js dari CDN agar tidak mengotori penyimpanan local C: -->
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 	<title>KMS Digital Bunda - POSYANDU Sehat Bersama</title>
 </svelte:head>
@@ -150,7 +170,6 @@
 <div
 	class="min-h-screen bg-gradient-to-br from-teal-50/50 via-white to-blue-50/30 p-4 font-sans md:p-8"
 >
-	<!-- Top Bar Selamat Datang -->
 	<div
 		class="mb-8 flex flex-col items-start justify-between gap-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-md shadow-teal-900/5 sm:flex-row sm:items-center"
 	>
@@ -170,7 +189,6 @@
 			</div>
 		</div>
 
-		<!-- Selector Anak jika Warga memiliki lebih dari 1 Balita -->
 		{#if dataKMS.length > 1}
 			<div class="flex w-full items-center gap-2 sm:w-auto">
 				<label class="shrink-0 text-xs font-bold text-gray-500 uppercase" for="select-anak"
@@ -215,9 +233,7 @@
 		</div>
 	{:else}
 		<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-			<!-- PANEL UTAMA KIRI: KARTU IDENTITAS & DATA TERAKHIR -->
 			<div class="space-y-6">
-				<!-- Biodata Anak -->
 				<div
 					class="relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-6 shadow-md"
 				>
@@ -255,7 +271,6 @@
 					</div>
 				</div>
 
-				<!-- Ringkasan Status Gizi Terakhir -->
 				<div
 					class="rounded-3xl bg-gradient-to-tr from-[#117064] to-teal-600 p-6 text-white shadow-xl"
 				>
@@ -295,15 +310,13 @@
 						{/if}
 					{:else}
 						<div class="py-6 text-center text-sm text-teal-100">
-							Belum ada rekam jejak pemeriksaan masuk.
+							Belum ada rekam jejak pemeriksaan masuk. Kader belum menginput data timbang.
 						</div>
 					{/if}
 				</div>
 			</div>
 
-			<!-- PANEL UTAMA KANAN: GRAFIK FANTASTIS & RIWAYAT -->
 			<div class="space-y-6 lg:col-span-2">
-				<!-- Box Grafik Pertumbuhan -->
 				<div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-md">
 					<div class="mb-4 flex items-center justify-between">
 						<h3
@@ -319,15 +332,15 @@
 							<canvas bind:this={chartCanvas}></canvas>
 						{:else}
 							<div
-								class="flex h-full items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400"
+								class="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-400"
 							>
-								Grafik akan muncul setelah Kader mengisi minimal 1 kali penimbangan.
+								<LineChart size={32} class="mb-2 text-gray-300" />
+								<p>Grafik akan muncul setelah Kader mengisi minimal 1 kali penimbangan.</p>
 							</div>
 						{/if}
 					</div>
 				</div>
 
-				<!-- Tabel Riwayat Kunjungan Bulanan -->
 				<div class="overflow-hidden rounded-3xl border border-gray-100 bg-white p-6 shadow-md">
 					<h3
 						class="mb-4 flex items-center gap-2 text-sm font-bold tracking-wider text-gray-700 uppercase"
@@ -346,27 +359,36 @@
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-gray-100">
-								{#each [...anakTerpilih.pemeriksaans].reverse() as p (p.id)}
-									<tr class="transition hover:bg-gray-50/50">
-										<td class="px-4 py-3 font-bold text-[#117064]"
-											>{hitungUmurBulan(anakTerpilih.tanggal_lahir, p.tanggal_periksa)} Bulan</td
-										>
-										<td class="px-4 py-3 text-gray-500"
-											>{new Date(p.tanggal_periksa).toLocaleDateString('id-ID', {
-												dateStyle: 'medium'
-											})}</td
-										>
-										<td class="px-4 py-3 text-center font-bold text-gray-700">{p.berat_badan}</td>
-										<td class="px-4 py-3 text-center font-bold text-gray-700">{p.tinggi_badan}</td>
-										<td class="px-4 py-3 text-center">
-											<span
-												class="inline-flex rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-[#117064]"
+								{#if anakTerpilih.pemeriksaans && anakTerpilih.pemeriksaans.length > 0}
+									{#each [...anakTerpilih.pemeriksaans].reverse() as p (p.id)}
+										<tr class="transition hover:bg-gray-50/50">
+											<td class="px-4 py-3 font-bold text-[#117064]"
+												>{hitungUmurBulan(anakTerpilih.tanggal_lahir, p.tanggal_periksa)} Bulan</td
 											>
-												{p.status_gizi}
-											</span>
-										</td>
+											<td class="px-4 py-3 text-gray-500"
+												>{new Date(p.tanggal_periksa).toLocaleDateString('id-ID', {
+													dateStyle: 'medium'
+												})}</td
+											>
+											<td class="px-4 py-3 text-center font-bold text-gray-700">{p.berat_badan}</td>
+											<td class="px-4 py-3 text-center font-bold text-gray-700">{p.tinggi_badan}</td
+											>
+											<td class="px-4 py-3 text-center">
+												<span
+													class="inline-flex rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-[#117064]"
+												>
+													{p.status_gizi}
+												</span>
+											</td>
+										</tr>
+									{/each}
+								{:else}
+									<tr>
+										<td colspan="5" class="py-6 text-center text-gray-400"
+											>Belum ada riwayat timbangan yang dicatat.</td
+										>
 									</tr>
-								{/each}
+								{/if}
 							</tbody>
 						</table>
 					</div>

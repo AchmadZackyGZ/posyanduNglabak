@@ -108,6 +108,7 @@ func (bc *BalitaController) RegisterBalita(c *gin.Context) {
 		NamaOrangTua: input.NamaOrangTua,
 		Alamat:       input.Alamat,
 		// NoHP saat ini tidak ada di struct models.Balita, jadi kita abaikan dulu dari input
+		UserID:       input.UserID, // <--- TAMBAHKAN BARIS INI
 	}
 
 	if err := bc.DB.Create(&balita).Error; err != nil {
@@ -258,6 +259,7 @@ func (bc *BalitaController) UpdateBalita(c *gin.Context){
 	balita.JenisKelamin = input.JenisKelamin
 	balita.NamaOrangTua = input.NamaOrangTua
 	balita.Alamat = input.Alamat
+	balita.UserID = input.UserID // <--- TAMBAHKAN BARIS INI
 
 	// 5. Simpan perubahan ke database
 	if err := bc.DB.Save(&balita).Error; err != nil {
