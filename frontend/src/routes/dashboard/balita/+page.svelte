@@ -2,10 +2,11 @@
 	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { onMount } from 'svelte';
 	import { fetchAPI } from '$lib/api';
-	import { Search, Plus, Edit2, Trash2, Baby } from 'lucide-svelte';
+	import { Search, Plus, Edit2, Trash2, Baby, Link } from 'lucide-svelte';
 
 	interface Balita {
 		id: string;
+		user_id: string | null;
 		nik: string;
 		nama_balita: string;
 		tanggal_lahir: string;
@@ -15,8 +16,15 @@
 		no_hp: string;
 	}
 
+	interface UserPublik {
+		id: string;
+		nama_lengkap: string;
+		username: string; // Nomor HP
+	}
+
 	let searchQuery = $state('');
 	let balitaList = $state<Balita[]>([]);
+	let publicUsers = $state<UserPublik[]>([]);
 	let isLoading = $state(true);
 
 	// --- STATE MODAL & FORM ---
@@ -34,7 +42,8 @@
 		jenis_kelamin: 'L',
 		nama_orang_tua: '',
 		alamat: '',
-		no_hp: ''
+		no_hp: '',
+		user_id: ''
 	});
 
 	function hitungUsiaBulan(tglLahir: string) {
@@ -48,12 +57,16 @@
 
 	async function loadDataBalita() {
 		try {
-			const response = await fetchAPI('/balita');
-			if (response.data) {
-				balitaList = response.data;
-			}
+			// Memanggil API Balita dan API Pengguna Publik sekaligus
+			const [responseBalita, responseUsers] = await Promise.all([
+				fetchAPI('/balita'),
+				fetchAPI('/pengguna/publik')
+			]);
+
+			if (responseBalita.data) balitaList = responseBalita.data;
+			if (responseUsers.data) publicUsers = responseUsers.data;
 		} catch (error) {
-			console.error('Gagal memuat data balita:', error);
+			console.error('Gagal memuat data:', error);
 		} finally {
 			isLoading = false;
 		}
@@ -84,7 +97,8 @@
 			jenis_kelamin: 'L',
 			nama_orang_tua: '',
 			alamat: '',
-			no_hp: ''
+			no_hp: '',
+			user_id: ''
 		};
 		isModalOpen = true;
 	}
@@ -94,8 +108,6 @@
 		isEditMode = true;
 		editId = balita.id;
 
-		// Backend Golang mengirim waktu lengkap (misal: 2026-04-07T00:00:00Z).
-		// Kita potong (split) agar hanya mengambil 'YYYY-MM-DD' untuk input type="date"
 		const tglLahirSaja = balita.tanggal_lahir ? balita.tanggal_lahir.split('T')[0] : '';
 
 		formBalita = {
@@ -105,7 +117,8 @@
 			jenis_kelamin: balita.jenis_kelamin,
 			nama_orang_tua: balita.nama_orang_tua,
 			alamat: balita.alamat,
-			no_hp: balita.no_hp
+			no_hp: balita.no_hp,
+			user_id: balita.user_id || '' // Menarik data tautan sebelumnya jika ada
 		};
 		isModalOpen = true;
 	}
@@ -120,7 +133,6 @@
 			return;
 
 		try {
-			// Tembak API DELETE ke Golang
 			await fetchAPI(`/balita/${id}`, { method: 'DELETE' });
 			await loadDataBalita(); // Segarkan tabel
 			alert('Data balita berhasil dihapus!');
@@ -135,19 +147,23 @@
 		event.preventDefault();
 		isSubmitting = true;
 
+		// Siapkan payload, ubah user_id kosong menjadi null agar sesuai dengan database PostgreSQL
+		const payload = {
+			...formBalita,
+			user_id: formBalita.user_id === '' ? null : formBalita.user_id
+		};
+
 		try {
 			if (isEditMode) {
-				// Jalur Update (PUT)
 				await fetchAPI(`/balita/${editId}`, {
 					method: 'PUT',
-					body: JSON.stringify(formBalita)
+					body: JSON.stringify(payload)
 				});
 				alert('Data balita berhasil diperbarui!');
 			} else {
-				// Jalur Tambah Baru (POST)
 				await fetchAPI('/balita/register', {
 					method: 'POST',
-					body: JSON.stringify(formBalita)
+					body: JSON.stringify(payload)
 				});
 				alert('Data balita berhasil didaftarkan!');
 			}
@@ -175,7 +191,7 @@
 		<div>
 			<h1 class="text-3xl font-black tracking-tight text-[#1e293b]">Manajemen Data Balita</h1>
 			<p class="mt-1.5 text-sm font-medium text-gray-500">
-				Kelola pendaftaran, identitas, dan riwayat penimbangan balita.
+				Kelola pendaftaran, identitas, riwayat penimbangan, dan tautan akun publik.
 			</p>
 		</div>
 		<button
@@ -227,13 +243,14 @@
 						<th class="w-24 px-6 py-5 text-center">L/P</th>
 						<th class="w-32 px-6 py-5 text-center">Usia</th>
 						<th class="px-6 py-5">Nama Ibu</th>
+						<th class="px-6 py-5 text-center">Status Akun</th>
 						<th class="w-32 px-6 py-5 text-center">Aksi</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-gray-50 bg-white">
 					{#if isLoading}
 						<tr>
-							<td colspan="6" class="px-6 py-16 text-center">
+							<td colspan="7" class="px-6 py-16 text-center">
 								<div class="flex flex-col items-center justify-center text-gray-400">
 									<div
 										class="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-[#14a38b] border-t-transparent"
@@ -244,7 +261,7 @@
 						</tr>
 					{:else if filteredBalita.length === 0}
 						<tr>
-							<td colspan="6" class="px-6 py-16 text-center">
+							<td colspan="7" class="px-6 py-16 text-center">
 								<div class="flex flex-col items-center justify-center text-gray-400">
 									<Search size={32} class="mb-3 opacity-50" />
 									<p class="text-base font-medium">Tidak ada data balita ditemukan.</p>
@@ -277,12 +294,27 @@
 							<td class="px-6 py-4">
 								<span class="font-medium text-gray-700">{balita.nama_orang_tua}</span>
 							</td>
+							<td class="px-6 py-4 text-center">
+								{#if balita.user_id}
+									<span
+										class="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700"
+									>
+										<Link size={12} /> Tertaut
+									</span>
+								{:else}
+									<span
+										class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-500"
+									>
+										Belum
+									</span>
+								{/if}
+							</td>
 							<td class="px-6 py-4">
 								<div class="flex items-center justify-center gap-2">
 									<button
 										onclick={() => handleEditBalita(balita)}
 										class="cursor-pointer rounded-lg bg-blue-50 p-2 text-blue-600 transition-colors hover:bg-blue-100"
-										title="Edit Data"
+										title="Edit Data / Tautkan Akun"
 									>
 										<Edit2 size={18} />
 									</button>
@@ -316,12 +348,12 @@
 				</h2>
 				<p class="text-xs text-gray-500">
 					{isEditMode
-						? 'Ubah informasi profil balita.'
+						? 'Ubah informasi profil balita dan kelola tautan KMS digital.'
 						: 'Masukkan identitas lengkap balita untuk pendataan Posyandu.'}
 				</p>
 			</div>
 
-			<form onsubmit={handleSubmit} class="space-y-4 p-6">
+			<form onsubmit={handleSubmit} class="max-h-[80vh] space-y-4 overflow-y-auto p-6">
 				<div>
 					<label class="mb-1.5 block text-xs font-bold text-gray-700"
 						>NIK Balita (Jika ada) / Nomor KIA</label
@@ -404,6 +436,26 @@
 						placeholder="Contoh: 081234567890"
 						class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456] disabled:cursor-not-allowed disabled:opacity-60"
 					/>
+				</div>
+
+				<!-- FITUR PENAUTAN (LINKING) AKUN WARGA -->
+				<div class="mt-2 rounded-xl border border-teal-100 bg-teal-50/50 p-4">
+					<label class="mb-1 flex items-center gap-2 text-xs font-bold text-[#117064]">
+						<Link size={14} /> Tautkan ke Akun Warga (Opsional)
+					</label>
+					<p class="mb-2 text-[10px] leading-relaxed text-gray-500">
+						Pilih akun ibu/keluarga yang sudah mendaftar agar mereka bisa melihat KMS di aplikasi
+						secara mandiri.
+					</p>
+					<select
+						bind:value={formBalita.user_id}
+						class="w-full rounded-xl border border-teal-200 bg-white p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456]"
+					>
+						<option value="">-- Jangan Tautkan Dulu --</option>
+						{#each publicUsers as user (user.id)}
+							<option value={user.id}>{user.nama_lengkap} (HP: {user.username})</option>
+						{/each}
+					</select>
 				</div>
 
 				<div class="mt-6 flex items-center justify-end gap-3 border-t border-gray-50 pt-4">

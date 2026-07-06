@@ -128,11 +128,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			pengguna.Use(middleware.RoleRequired("ADMIN"))
 			{
 				pengguna.GET("", userController.GetListUsers)
-				pengguna.GET("/publik", userController.GetPublicUsers)
 				pengguna.POST("", userController.CreateUser)
 				pengguna.PUT("/:id", userController.UpdateUser)
 				pengguna.PUT("/:id/reset-password", userController.ResetPassword)
 				pengguna.DELETE("/:id", userController.DeleteUser)
+			}
+
+						// Endpoint Akses Daftar Warga (Bisa diakses Admin, Bidan, Kader)
+			wargaPublik := protected.Group("/pengguna/publik")
+			wargaPublik.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			{
+    			wargaPublik.GET("", userController.GetPublicUsers)
 			}
 
 			// Endpoint Manajemen Inventaris Logistik

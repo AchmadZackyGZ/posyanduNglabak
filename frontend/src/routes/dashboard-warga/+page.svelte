@@ -30,6 +30,7 @@
 
 	// References untuk canvas grafik
 	let chartCanvas = $state<HTMLCanvasElement | null>(null);
+
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let chartInstance: any = null;
 
@@ -38,8 +39,7 @@
 			const res = await fetchAPI('/warga/kms');
 			dataKMS = res.data || [];
 		} catch (error: unknown) {
-			console.error(error);
-			errorMessage = 'Gagal memuat rekam medis KMS Anda.';
+			errorMessage = (error as Error).message || 'Gagal memuat rekam medis KMS Anda.';
 			console.error(error);
 		} finally {
 			isLoading = false;

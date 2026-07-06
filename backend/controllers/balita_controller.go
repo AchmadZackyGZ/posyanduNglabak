@@ -38,6 +38,7 @@ type RegisterBalitaInput struct {
 	NamaOrangTua string `json:"nama_orang_tua" binding:"required"`
 	Alamat       string `json:"alamat" binding:"required"`
 	NoHP         string `json:"no_hp" binding:"required"` // Digunakan sebagai username ortu
+	UserID       *string `json:"user_id"` // <--- TAMBAHKAN INI (Gunakan *string agar bisa menerima null)
 }
 
 // --- DTO Update ---
@@ -58,6 +59,7 @@ type UpdateBalitaInput struct {
 	JenisKelamin string `json:"jenis_kelamin" binding:"required"`
 	NamaOrangTua string `json:"nama_orang_tua" binding:"required"`
 	Alamat       string `json:"alamat" binding:"required"`
+	UserID       *string `json:"user_id"` // <--- TAMBAHKAN INI JUGA
 }
 
 // Struktur input pencatatan imunisasi
