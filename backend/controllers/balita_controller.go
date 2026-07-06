@@ -38,6 +38,7 @@ type RegisterBalitaInput struct {
 	NamaOrangTua string `json:"nama_orang_tua" binding:"required"`
 	Alamat       string `json:"alamat" binding:"required"`
 	NoHP         string `json:"no_hp" binding:"required"` // Digunakan sebagai username ortu
+	UserID       *string `json:"user_id"` // <--- TAMBAHKAN INI (Gunakan *string agar bisa menerima null)
 }
 
 // --- DTO Update ---
@@ -58,6 +59,7 @@ type UpdateBalitaInput struct {
 	JenisKelamin string `json:"jenis_kelamin" binding:"required"`
 	NamaOrangTua string `json:"nama_orang_tua" binding:"required"`
 	Alamat       string `json:"alamat" binding:"required"`
+	UserID       *string `json:"user_id"` // <--- TAMBAHKAN INI JUGA
 }
 
 // Struktur input pencatatan imunisasi
@@ -106,6 +108,7 @@ func (bc *BalitaController) RegisterBalita(c *gin.Context) {
 		NamaOrangTua: input.NamaOrangTua,
 		Alamat:       input.Alamat,
 		// NoHP saat ini tidak ada di struct models.Balita, jadi kita abaikan dulu dari input
+		UserID:       input.UserID, // <--- TAMBAHKAN BARIS INI
 	}
 
 	if err := bc.DB.Create(&balita).Error; err != nil {
@@ -256,6 +259,7 @@ func (bc *BalitaController) UpdateBalita(c *gin.Context){
 	balita.JenisKelamin = input.JenisKelamin
 	balita.NamaOrangTua = input.NamaOrangTua
 	balita.Alamat = input.Alamat
+	balita.UserID = input.UserID // <--- TAMBAHKAN BARIS INI
 
 	// 5. Simpan perubahan ke database
 	if err := bc.DB.Save(&balita).Error; err != nil {

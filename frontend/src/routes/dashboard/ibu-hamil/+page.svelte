@@ -24,7 +24,7 @@
 	// --- STATE MODAL & FORM ---
 	let isModalOpen = $state(false);
 	let isSubmitting = $state(false);
-	
+
 	let isEditMode = $state(false);
 	let editId = $state('');
 
@@ -47,7 +47,7 @@
 		const diffTime = hplDate.getTime() - today.getTime();
 		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 		const weeksLeft = Math.floor(diffDays / 7);
-		
+
 		let usia = 40 - weeksLeft;
 		if (usia < 0) usia = 0;
 		if (usia > 42) usia = 42; // Batas maksimal logis
@@ -99,7 +99,13 @@
 		isEditMode = false;
 		editId = '';
 		formIbuHamil = {
-			nik: '', nama_ibu: '', hpl: '', status_kehamilan: 'Normal', alamat: '', no_hp: '', tanggal_lahir: ''
+			nik: '',
+			nama_ibu: '',
+			hpl: '',
+			status_kehamilan: 'Normal',
+			alamat: '',
+			no_hp: '',
+			tanggal_lahir: ''
 		};
 		isModalOpen = true;
 	}
@@ -107,7 +113,7 @@
 	function handleEditIbuHamil(ibu: IbuHamil) {
 		isEditMode = true;
 		editId = ibu.id;
-		
+
 		// Potong format timestamp ISO dari Golang (misal 2026-06-10T00:00:00Z -> 2026-06-10)
 		const hplSaja = ibu.hpl ? ibu.hpl.split('T')[0] : '';
 
@@ -119,7 +125,6 @@
 			alamat: ibu.alamat,
 			no_hp: ibu.no_hp,
 			tanggal_lahir: ibu.tanggal_lahir ? ibu.tanggal_lahir.split('T')[0] : ''
-
 		};
 		isModalOpen = true;
 	}
@@ -194,9 +199,13 @@
 	</div>
 
 	<div class="overflow-hidden rounded-[24px] border border-gray-100 bg-white shadow-sm">
-		<div class="flex flex-col items-start justify-between gap-4 border-b border-gray-100 bg-white p-6 md:flex-row md:items-center">
+		<div
+			class="flex flex-col items-start justify-between gap-4 border-b border-gray-100 bg-white p-6 md:flex-row md:items-center"
+		>
 			<div class="relative w-full md:w-96">
-				<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+				<div
+					class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400"
+				>
 					<Search size={18} />
 				</div>
 				<input
@@ -207,7 +216,9 @@
 				/>
 			</div>
 
-			<div class="flex flex-shrink-0 items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-500">
+			<div
+				class="flex flex-shrink-0 items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-500"
+			>
 				<HeartPulse size={20} class="text-[#14a38b]" />
 				<span>Total Kandungan:</span>
 				<span class="rounded-lg bg-[#e6f6f4] px-2.5 py-0.5 font-black text-[#0f6456]">
@@ -218,7 +229,9 @@
 
 		<div class="w-full overflow-x-auto">
 			<table class="w-full min-w-[900px] border-collapse text-left text-sm text-gray-600">
-				<thead class="border-b border-gray-100 bg-gray-50/80 text-xs font-bold tracking-wider text-gray-500 uppercase">
+				<thead
+					class="border-b border-gray-100 bg-gray-50/80 text-xs font-bold tracking-wider text-gray-500 uppercase"
+				>
 					<tr>
 						<th class="w-16 px-6 py-5 text-center">No</th>
 						<th class="px-6 py-5">NIK / Nama Ibu Hamil</th>
@@ -234,7 +247,9 @@
 						<tr>
 							<td colspan="7" class="px-6 py-16 text-center">
 								<div class="flex flex-col items-center justify-center text-gray-400">
-									<div class="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-[#14a38b] border-t-transparent"></div>
+									<div
+										class="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-[#14a38b] border-t-transparent"
+									></div>
 									<p class="text-base font-medium">Memuat data dari server...</p>
 								</div>
 							</td>
@@ -264,11 +279,14 @@
 								<span class="font-bold text-gray-700">{ibu.hpl ? ibu.hpl.split('T')[0] : '-'}</span>
 							</td>
 							<td class="px-6 py-4 text-center">
-								<span class="text-lg font-black text-[#0f6456]">{hitungUsiaKandungan(ibu.hpl)}</span>
+								<span class="text-lg font-black text-[#0f6456]">{hitungUsiaKandungan(ibu.hpl)}</span
+								>
 								<span class="text-xs font-medium text-gray-500"> Mgg</span>
 							</td>
 							<td class="px-6 py-4 text-center">
-								<span class={`inline-flex items-center justify-center rounded-lg border px-3 py-1 text-xs font-bold ${getStatusColor(ibu.status_kehamilan)}`}>
+								<span
+									class={`inline-flex items-center justify-center rounded-lg border px-3 py-1 text-xs font-bold ${getStatusColor(ibu.status_kehamilan)}`}
+								>
 									{#if ibu.status_kehamilan === 'Risiko Tinggi'}
 										<AlertCircle size={14} class="mr-1.5" />
 									{/if}
@@ -302,7 +320,9 @@
 </div>
 
 {#if isModalOpen}
-	<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+	<div
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+	>
 		<div class="absolute inset-0 cursor-pointer" onclick={() => (isModalOpen = false)}></div>
 
 		<div class="relative z-10 w-full max-w-[500px] overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -311,7 +331,9 @@
 					{isEditMode ? 'Edit Data Ibu Hamil' : 'Registrasi Ibu Hamil Baru'}
 				</h2>
 				<p class="text-xs text-gray-500">
-					{isEditMode ? 'Ubah informasi rekam medis kehamilan.' : 'Masukkan identitas lengkap untuk pendataan ibu hamil.'}
+					{isEditMode
+						? 'Ubah informasi rekam medis kehamilan.'
+						: 'Masukkan identitas lengkap untuk pendataan ibu hamil.'}
 				</p>
 			</div>
 
@@ -340,7 +362,8 @@
 
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label class="mb-1.5 block text-xs font-bold text-gray-700">HPL (Perkiraan Lahir)</label>
+						<label class="mb-1.5 block text-xs font-bold text-gray-700">HPL (Perkiraan Lahir)</label
+						>
 						<input
 							type="date"
 							required
@@ -383,14 +406,16 @@
 				</div>
 
 				<div>
-					<label class="mb-1.5 block text-xs font-bold text-gray-700">Nomor HP / WhatsApp (Aktif)</label>
+					<label class="mb-1.5 block text-xs font-bold text-gray-700"
+						>Nomor HP / WhatsApp (Aktif)</label
+					>
 					<input
 						type="tel"
 						required
 						disabled={isEditMode}
 						bind:value={formIbuHamil.no_hp}
 						placeholder="Contoh: 081234567890"
-						class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456] disabled:opacity-60 disabled:cursor-not-allowed"
+						class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 transition outline-none focus:border-[#0f6456] focus:ring-1 focus:ring-[#0f6456] disabled:cursor-not-allowed disabled:opacity-60"
 					/>
 				</div>
 
@@ -407,7 +432,11 @@
 						disabled={isSubmitting}
 						class="cursor-pointer rounded-xl bg-[#0f6456] px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-[#0c4e43] disabled:cursor-not-allowed disabled:opacity-70"
 					>
-						{isSubmitting ? 'Menyimpan...' : (isEditMode ? 'Simpan Perubahan' : 'Daftarkan Ibu Hamil')}
+						{isSubmitting
+							? 'Menyimpan...'
+							: isEditMode
+								? 'Simpan Perubahan'
+								: 'Daftarkan Ibu Hamil'}
 					</button>
 				</div>
 			</form>
