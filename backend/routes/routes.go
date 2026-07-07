@@ -9,10 +9,19 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine, db *gorm.DB) {
+	// PASANG MIDDLEWARE CORS SECARA GLOBAL DI SINI
+	r.Use(middleware.CORSMiddleware())
+	
 	authController := controllers.NewAuthController(db)
 	balitaController := controllers.NewBalitaController(db)
 	lansiaController := controllers.NewLansiaController(db)
 	ibuHamilController := controllers.NewIbuHamilController(db)
+	dashboardController := controllers.NewDashboardController(db)
+	jadwalController := controllers.NewJadwalController(db)
+	pengaturanController := controllers.NewPengaturanController(db)
+	userController := controllers.NewUserController(db)
+	inventarisController := controllers.NewInventarisController(db)
+	wargaController := controllers.NewWargaController(db)
 
 	v1 := r.Group("/api/v1")
 	{
@@ -23,33 +32,131 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", authController.Login)
+			auth.POST("/register", authController.Register)
 		}
 
 		// Blok rute terproteksi (Memerlukan validasi token JWT)
 		protected := v1.Group("")
 		protected.Use(middleware.AuthRequired())
 		{
+			// Endpoint Dashboard
+			dashboard := protected.Group("/dashboard")
+			dashboard.Use(middleware.RoleRequired("BIDAN", "KADER"))
+			{
+				dashboard.GET("/summary", dashboardController.GetSummary)
+			}
+
+			laporan := protected.Group("/laporan")
+	
+			// Hak akses laporan diberikan kepada ADMIN, BIDAN, dan KADER
+			laporan.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			{
+				// Endpoint API Laporan Balita
+				laporan.GET("/balita", controllers.GetLaporanBalita)
+				
+				// Endpoint API Laporan Ibu Hamil
+				laporan.GET("/ibu-hamil", controllers.GetLaporanIbuHamil)
+				
+				// Endpoint API Laporan Lansia
+				laporan.GET("/lansia", controllers.GetLaporanLansia)
+			}
+
 			// Endpoint Operasional Balita
 			balita := protected.Group("/balita")
-			balita.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			balita.Use(middleware.RoleRequired("BIDAN", "KADER"))
 			{
 				balita.POST("/register", balitaController.RegisterBalita)
 				balita.POST("/timbang", balitaController.CatatPemeriksaan)
+				balita.POST("/imunisasi", balitaController.CatatImunisasi)
+				balita.GET("", balitaController.GetListBalita) // API Ambil Daftar Balita
+				balita.PUT("/:id", balitaController.UpdateBalita)
+				balita.DELETE("/:id", balitaController.DeleteBalita)
+				balita.GET("/pemeriksaan", balitaController.GetRiwayatTimbang)
+				balita.GET("/imunisasi", balitaController.GetRiwayatImunisasi)
+				balita.PUT("/pemeriksaan/:id", balitaController.UpdatePemeriksaan)
+				balita.DELETE("/pemeriksaan/:id", balitaController.DeletePemeriksaan)
+				balita.PUT("/imunisasi/:id", balitaController.UpdateImunisasi)
+				balita.DELETE("/imunisasi/:id", balitaController.DeleteImunisasi)
 			}
 
+			// Endpoint Operasional Ibu Hamil
 			ibuHamil := protected.Group("/ibu-hamil")
-			ibuHamil.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			ibuHamil.Use(middleware.RoleRequired("BIDAN", "KADER"))
 			{
 				ibuHamil.POST("/register", ibuHamilController.RegisterIbuHamil)
 				ibuHamil.POST("/periksa", ibuHamilController.CatatPemeriksaan)
+				ibuHamil.GET("", ibuHamilController.GetListIbuHamil) // API Ambil Daftar Ibu Hamil
+				ibuHamil.PUT("/:id", ibuHamilController.UpdateIbuHamil)
+				ibuHamil.DELETE("/:id", ibuHamilController.DeleteIbuHamil)
+				ibuHamil.GET("/pemeriksaan", ibuHamilController.GetRiwayatPeriksa)
+				ibuHamil.PUT("/pemeriksaan/:id", ibuHamilController.UpdatePemeriksaan)
+				ibuHamil.DELETE("/pemeriksaan/:id", ibuHamilController.DeletePemeriksaan)
 			}
 
-			// <-- 2. INJEKSI ENDPOINT LANSIA DI SINI
+			// Endpoint Operasional Lansia
 			lansia := protected.Group("/lansia")
-			lansia.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			lansia.Use(middleware.RoleRequired("BIDAN", "KADER"))
 			{
 				lansia.POST("/register", lansiaController.RegisterLansia)
 				lansia.POST("/periksa", lansiaController.CatatPemeriksaan)
+				lansia.GET("", lansiaController.GetListLansia) // API Ambil Daftar Lansia
+				lansia.PUT("/:id", lansiaController.UpdateLansia)
+				lansia.DELETE("/:id", lansiaController.DeleteLansia)
+				lansia.GET("/pemeriksaan", lansiaController.GetRiwayatPeriksa)
+				lansia.PUT("/pemeriksaan/:id", lansiaController.UpdatePemeriksaan)
+				lansia.DELETE("/pemeriksaan/:id", lansiaController.DeletePemeriksaan)
+			}
+
+			// Endpoint Manajemen Jadwal
+			jadwal := protected.Group("/jadwal")
+			jadwal.Use(middleware.RoleRequired("BIDAN", "KADER"))
+			{
+				jadwal.POST("", jadwalController.CreateJadwal)
+				jadwal.GET("", jadwalController.GetListJadwal)
+			}
+
+			// Endpoint Manajemen Pengaturan
+			pengaturan := protected.Group("/pengaturan")
+			pengaturan.Use(middleware.RoleRequired("ADMIN")) // Hanya Admin yang boleh mengubah pengaturan sistem
+			{
+				pengaturan.GET("", pengaturanController.GetPengaturan)
+				pengaturan.PUT("", pengaturanController.UpdatePengaturan)
+			}
+
+			// Endpoint Manajemen Pengguna
+			pengguna := protected.Group("/pengguna")
+			pengguna.Use(middleware.RoleRequired("ADMIN"))
+			{
+				pengguna.GET("", userController.GetListUsers)
+				pengguna.POST("", userController.CreateUser)
+				pengguna.PUT("/:id", userController.UpdateUser)
+				pengguna.PUT("/:id/reset-password", userController.ResetPassword)
+				pengguna.DELETE("/:id", userController.DeleteUser)
+			}
+
+						// Endpoint Akses Daftar Warga (Bisa diakses Admin, Bidan, Kader)
+			wargaPublik := protected.Group("/pengguna/publik")
+			wargaPublik.Use(middleware.RoleRequired("ADMIN", "BIDAN", "KADER"))
+			{
+    			wargaPublik.GET("", userController.GetPublicUsers)
+			}
+
+			// Endpoint Manajemen Inventaris Logistik
+			inventaris := protected.Group("/inventaris")
+			inventaris.Use(middleware.RoleRequired("BIDAN", "KADER")) // Sesuai Use Case Diagram PDF
+			{
+				inventaris.GET("", inventarisController.GetListInventaris)
+				inventaris.POST("", inventarisController.CreateInventaris)
+				inventaris.PUT("/:id", inventarisController.UpdateInventaris)
+				inventaris.PATCH("/:id/stok", inventarisController.UpdateStok)
+				inventaris.DELETE("/:id", inventarisController.DeleteInventaris)
+			}
+
+			// Endpoint Khusus Warga (Orang Tua / Peserta)
+			warga := protected.Group("/warga")
+			warga.Use(middleware.RoleRequired("USER")) // <--- Akses khusus warga
+			{
+				warga.GET("/kms", wargaController.GetKMSAnak)
 			}
 		}
 	}

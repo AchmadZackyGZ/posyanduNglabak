@@ -11,6 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
+var DB *gorm.DB
+
+
 func ConnectDB() *gorm.DB {
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Jakarta",
 		os.Getenv("DB_HOST"),
@@ -24,6 +27,8 @@ func ConnectDB() *gorm.DB {
 	if err != nil {
 		log.Fatal("❌ Gagal koneksi ke database PostgreSQL:", err)
 	}
+
+	DB = db // Simpan instance DB ke variabel global
 
 	fmt.Println("✅ Berhasil terhubung ke database Posyandu di Port:", os.Getenv("DB_PORT"))
 
@@ -39,6 +44,8 @@ func ConnectDB() *gorm.DB {
 		&models.ImunisasiBalita{},
 		&models.PemeriksaanIbuHamil{},
 		&models.PemeriksaanLansia{},
+		&models.Pengaturan{},
+		&models.Inventaris{},
 	)
 	if err != nil {
 		log.Fatal("❌ Gagal menjalankan migrasi tabel:", err)

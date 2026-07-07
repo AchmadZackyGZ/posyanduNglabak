@@ -42,7 +42,8 @@ type JadwalKegiatan struct {
 
 type Balita struct {
 	ID            string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	UserID        string    `gorm:"type:uuid;not null" json:"user_id"` // Akun milik orang tua (Role: USER)
+	// FIX: Jadikan pointer (*string) agar pendaftaran balita tidak wajib membuat akun User
+	UserID        *string   `gorm:"type:uuid;default:null" json:"user_id"`
 	NIK           string    `gorm:"type:varchar(20);uniqueIndex;not null" json:"nik"`
 	NamaBalita    string    `gorm:"type:varchar(150);not null" json:"nama_balita"`
 	TanggalLahir  time.Time `gorm:"type:date;not null" json:"tanggal_lahir"`
@@ -57,9 +58,16 @@ type Balita struct {
 
 type IbuHamil struct {
 	ID              string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	UserID          string    `gorm:"type:uuid;not null" json:"user_id"` // Akun login milik ibu hamil
+	
+	// FIX: Jadikan pointer (*string) dan default:null agar pasien bisa didaftarkan TANPA harus punya akun User dulu
+	UserID          *string   `gorm:"type:uuid;default:null" json:"user_id"` 
+	
 	NIK             string    `gorm:"type:varchar(20);uniqueIndex;not null" json:"nik"`
 	NamaIbu         string    `gorm:"type:varchar(150);not null" json:"nama_ibu"`
+	
+	// FIX: Tambahkan kolom NoHP langsung di tabel IbuHamil, tidak lagi numpang di tabel User
+	NoHP            string    `gorm:"type:varchar(20)" json:"no_hp"` 
+	
 	TanggalLahir    time.Time `gorm:"type:date;not null" json:"tanggal_lahir"`
 	HPL             time.Time `gorm:"type:date;not null" json:"hpl"` // Hari Perkiraan Lahir
 	Alamat          string    `gorm:"type:text" json:"alamat"`
@@ -84,6 +92,19 @@ type Lansia struct {
 	Pemeriksaans []PemeriksaanLansia `gorm:"foreignKey:LansiaID" json:"pemeriksaans,omitempty"`
 }
 
+type Pengaturan struct {
+	ID             string `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	NamaPosyandu   string `gorm:"type:varchar(150)" json:"nama_posyandu"`
+	Alamat         string `gorm:"type:text" json:"alamat"`
+	NomorHp        string `gorm:"type:varchar(20)" json:"nomor_hp"`
+	WilayahKerja   string `gorm:"type:varchar(150)" json:"wilayah_kerja"`
+	NotifJadwal    bool   `gorm:"default:true" json:"notif_jadwal"`
+	NotifImunisasi bool   `gorm:"default:true" json:"notif_imunisasi"`
+	AlertStunting  bool   `gorm:"default:true" json:"alert_stunting"`
+	BackupOtomatis bool   `gorm:"default:true" json:"backup_otomatis"`
+	ModeGelap      bool   `gorm:"default:false" json:"mode_gelap"`
+}
+
 // ==========================================
 // 3. ENTITAS TRANSAKSIONAL (REKAM MEDIS)
 // ==========================================
@@ -101,6 +122,7 @@ type PemeriksaanBalita struct {
 	CreatedAt      time.Time `json:"created_at"`
 
 	Pemeriksa User `gorm:"foreignKey:DiperiksaOleh" json:"pemeriksa"`
+	Balita Balita `gorm:"foreignKey:BalitaID" json:"balita"`
 }
 
 type ImunisasiBalita struct {
@@ -113,6 +135,7 @@ type ImunisasiBalita struct {
 	CreatedAt        time.Time `json:"created_at"`
 
 	Pencatat User `gorm:"foreignKey:DicatatOleh" json:"pencatat"`
+	Balita  Balita `gorm:"foreignKey:BalitaID" json:"balita"`
 }
 
 type PemeriksaanIbuHamil struct {
@@ -127,6 +150,7 @@ type PemeriksaanIbuHamil struct {
 	CreatedAt      time.Time `json:"created_at"`
 
 	Pemeriksa User `gorm:"foreignKey:DiperiksaOleh" json:"pemeriksa"`
+	IbuHamil IbuHamil `gorm:"foreignKey:IbuHamilID" json:"ibu_hamil"`
 }
 
 type PemeriksaanLansia struct {
@@ -141,4 +165,19 @@ type PemeriksaanLansia struct {
 	CreatedAt      time.Time `json:"created_at"`
 
 	Pemeriksa User `gorm:"foreignKey:DiperiksaOleh" json:"pemeriksa"`
+	Lansia  Lansia `gorm:"foreignKey:LansiaID" json:"lansia"`
+}
+
+
+// ==========================================
+// 4. ENTITAS LOGISTIK & INVENTARIS
+// ==========================================
+
+type Inventaris struct {
+	ID         string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	NamaBarang string    `gorm:"type:varchar(150);not null" json:"nama_barang"`
+	Kategori   string    `gorm:"type:varchar(50);not null" json:"kategori"` // Vitamin, Obat, PMT
+	Stok       int       `gorm:"not null;default:0" json:"stok"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
