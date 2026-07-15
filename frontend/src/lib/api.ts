@@ -10,6 +10,7 @@ export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 	// FIX TYPINGS: Gunakan Record<string, string> alih-alih HeadersInit
 	const headers: Record<string, string> = {
 		'Content-Type': 'application/json',
+		'ngrok-skip-browser-warning': 'true',
 		...(options.headers as Record<string, string>)
 	};
 
