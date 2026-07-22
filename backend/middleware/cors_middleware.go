@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,8 +15,13 @@ func CORSMiddleware() gin.HandlerFunc {
 
 		// 2. Daftar tamu VIP (Masukkan URL Vercel Anda di sini)
 		allowedOrigins := map[string]bool{
-			"http://localhost:5173":                 true,
-			"https://posyandu-ngablak.vercel.app":   true, // <--- URL VERCEL ANDA
+			"http://localhost:5173": true,
+			// "https://posyandu-ngablak.vercel.app":   true, // <--- URL VERCEL ANDA
+		}
+
+		// Tambahkan origin frontend production dari env var (dipisah koma kalau lebih dari satu)
+		if frontendURL := os.Getenv("FRONTEND_URL"); frontendURL != "" {
+			allowedOrigins[frontendURL] = true
 		}
 
 		// 3. Jika tamu ada di daftar VIP, bukakan pintu khusus untuknya
