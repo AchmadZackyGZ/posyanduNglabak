@@ -14,10 +14,14 @@ import (
 )
 
 func main() {
-	// 1. Muat konfigurasi .env
+	// // 1. Muat konfigurasi .env
+	// if err := godotenv.Load(); err != nil {
+	// 	log.Fatal("❌ Error loading .env file")
+	// }
+
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("❌ Error loading .env file")
-	}
+    log.Println("⚠️  .env file tidak ditemukan, menggunakan environment variable sistem")
+}
 
 	// 2. Inisialisasi Database & Migrasi
 	db := config.ConnectDB()
